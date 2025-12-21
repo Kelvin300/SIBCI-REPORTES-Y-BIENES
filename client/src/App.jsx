@@ -42,12 +42,12 @@ const Home = () => (
     {/* --- TARJETA 2: CONTROL DE BIENES --- */}
         <Link 
           to="/bienes" 
-          className="group relative bg-white p-6 rounded-2xl shadow-md hover:shadow-2xl transition-all duration-300 border-t-4 border-indigo-600 hover:-translate-y-1 cursor-pointer flex flex-col items-center text-center"
+          className="group relative bg-white p-6 rounded-2xl shadow-md hover:shadow-2xl transition-all duration-300 border-t-4 border-blue-600 hover:-translate-y-1 cursor-pointer flex flex-col items-center text-center"
         >
-          <div className="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center mb-4 text-3xl group-hover:bg-indigo-600 group-hover:text-white transition-colors duration-300">
+          <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mb-4 text-3xl group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300">
             <FaBoxes />
           </div>
-          <h3 className="text-xl font-bold text-gray-800 group-hover:text-indigo-700 transition-colors">
+          <h3 className="text-xl font-bold text-gray-800 group-hover:text-blue-700 transition-colors">
             Control de Bienes
           </h3>
           <p className="text-sm text-gray-500 mt-2">
@@ -58,12 +58,12 @@ const Home = () => (
     {/* --- TARJETA 3: GESTIÓN DE REPORTES (NUEVA) --- */}
         <Link 
           to="/gestion" 
-          className="group relative bg-white p-6 rounded-2xl shadow-md hover:shadow-2xl transition-all duration-300 border-t-4 border-indigo-600 hover:-translate-y-1 cursor-pointer flex flex-col items-center text-center"
+          className="group relative bg-white p-6 rounded-2xl shadow-md hover:shadow-2xl transition-all duration-300 border-t-4 border-blue-600 hover:-translate-y-1 cursor-pointer flex flex-col items-center text-center"
         >
-          <div className="w-16 h-16 bg-indigo-50 text-blue-600 rounded-full flex items-center justify-center mb-4 text-3xl group-hover:bg-indigo-600 group-hover:text-white transition-colors duration-300">
+          <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mb-4 text-3xl group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300">
             <FaClipboardList />
           </div>
-          <h3 className="text-xl font-bold text-gray-800 group-hover:text-indigo-700 transition-colors">
+          <h3 className="text-xl font-bold text-gray-800 group-hover:text-blue-700 transition-colors">
             Gestión de Reportes
           </h3>
           <p className="text-sm text-gray-500 mt-2">
