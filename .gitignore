@@ -1,0 +1,49 @@
+# Dependencias
+node_modules/
+**/node_modules/
+
+# Archivos de entorno (contienen información sensible)
+.env
+.env.local
+.env.production
+server/.env
+
+# Base de datos (se crea automáticamente, pero puedes mantenerla si quieres datos iniciales)
+# server/sibci_database.sqlite
+
+# Archivos de build
+client/dist/
+client/build/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# Archivos de desarrollo
+.vscode/
+.idea/
+*.ps1
+!limpiar-para-produccion.ps1
+*.md
+!README.md
+!DEPLOY.md
+!ARCHIVOS_ELIMINAR.md
+
+# Archivos de prueba
+*test*.js
+check-env.js
+test-email.js
+
+# Archivos temporales
+*.tmp
+*.temp
+
