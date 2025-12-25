@@ -145,7 +145,7 @@ const ListaReportes = () => {
         <button
           onClick={() => setActiveTab('bienes')}
           className={`flex items-center gap-2 px-6 py-3 font-medium text-sm transition-all relative ${
-            activeTab === 'bienes' ? 'text-indigo-600 border-b-2 border-indigo-600 bg-indigo-50/50' : 'text-gray-500'
+            activeTab === 'bienes' ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50/50' : 'text-gray-500'
           }`}
         >
           <FaBoxes /> Inventario de Bienes
