@@ -182,10 +182,10 @@ const ListaReportes = () => {
                     </>
                 ) : (
                     <>
-                    <th className="p-4">Nombre Bien</th>
+                    <th className="p-4">Bienes</th>
                     <th className="p-4">Código</th>
                     <th className="p-4">Ubicación</th>
-                    <th className="p-4">Fecha Reg.</th>
+                    <th className="p-4">Fecha</th>
                     </>
                 )}
                 <th className="p-4 text-center">Acciones</th>

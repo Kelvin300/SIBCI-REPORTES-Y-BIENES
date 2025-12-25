@@ -1,51 +1,98 @@
 import React, { useState } from 'react';
 import axios from 'axios';
+// IMPORTANTE: Ajusta la ruta si tu carpeta components está en otro nivel
+import SuccessModal from "../components/SuccessModal"; // <-- Ajusta ruta si es necesario
 
 const Reports = () => {
+  // Estado del Formulario
   const [formData, setFormData] = useState({
     solicitante: '',
     departamento: '',
     tipo_falla: 'Hardware',
     descripcion: ''
   });
+  
   const [loading, setLoading] = useState(false);
+
+  // NUEVO: Estado para controlar el Modal
+  const [modalState, setModalState] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    isError: false // Para cambiar el color del icono
+  });
 
   const handleChange = (e) => {
     setFormData({...formData, [e.target.name]: e.target.value});
   };
 
+  // Función auxiliar para cerrar el modal
+  const closeModal = () => {
+    setModalState({ ...modalState, isOpen: false });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    
     try {
-      // axios ya tiene el token configurado en AuthContext
       const response = await axios.post('http://localhost:3001/api/reports', formData);
       const { emailSent, emailError } = response.data;
       
+      // Lógica de respuesta exitosa
       if (emailSent) {
-        alert('✅ Reporte enviado con éxito y notificado al correo.');
+        setModalState({
+          isOpen: true,
+          title: '¡Reporte Enviado!',
+          message: 'Tu reporte ha sido enviado con éxito y notificado al correo.',
+          isError: false
+        });
       } else if (emailError) {
-        alert(`⚠️ Reporte guardado correctamente, pero hubo un problema al enviar el correo:\n${emailError}\n\nRevisa la consola del servidor para más detalles.`);
+        setModalState({
+          isOpen: true,
+          title: 'Reporte Guardado (Con Aviso)',
+          message: `El reporte se guardó, pero hubo un problema al enviar el correo:\n${emailError}`,
+          isError: true // Lo mostramos rojo o naranja por el error de correo
+        });
         console.error('Error al enviar correo:', emailError);
       } else {
-        alert('✅ Reporte guardado correctamente.\n⚠️ El correo no pudo enviarse (falta configuración).');
+        setModalState({
+          isOpen: true,
+          title: 'Reporte Guardado',
+          message: 'Reporte guardado correctamente.\nNota: El correo no pudo enviarse (falta configuración).',
+          isError: false
+        });
       }
+
+      // Limpiar formulario al tener éxito
       setFormData({ solicitante: '', departamento: '', tipo_falla: 'Hardware', descripcion: '' });
+
     } catch (error) {
-      alert('❌ Error al enviar reporte. Por favor, intenta nuevamente.');
+      // Lógica de error en la petición
       console.error('Error completo:', error);
+      
+      let errorMsg = 'Ocurrió un error inesperado.';
       if (error.response) {
-        console.error('Respuesta del servidor:', error.response.data);
+         errorMsg = `El servidor respondió: ${JSON.stringify(error.response.data)}`;
       }
+
+      setModalState({
+        isOpen: true,
+        title: 'Error al Enviar',
+        message: 'No se pudo enviar el reporte. Por favor, intenta nuevamente.\n' + errorMsg,
+        isError: true
+      });
     }
+    
     setLoading(false);
   };
 
   return (
-    <div>
+    <div className="relative"> {/* relative ayuda al posicionamiento */}
       <h2 className="text-2xl font-bold text-gray-700 mb-6 flex items-center gap-2">
         <span className="text-sibci-accent">●</span> Reportar Falla Técnica
       </h2>
+      
       <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Nombre del Solicitante</label>
@@ -74,6 +121,15 @@ const Reports = () => {
             </button>
         </div>
       </form>
+
+      {/* AQUÍ ESTÁ LA MAGIA: El Modal se renderiza al final */}
+      <SuccessModal 
+        isOpen={modalState.isOpen}
+        title={modalState.title}
+        message={modalState.message}
+        isError={modalState.isError}
+        onClose={closeModal}
+      />
     </div>
   );
 };
