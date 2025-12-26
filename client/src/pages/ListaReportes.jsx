@@ -1,52 +1,55 @@
 import React, { useState, useEffect } from 'react';
-import { FaSearch, FaEdit, FaTrashAlt, FaLaptopMedical, FaBoxes, FaCheckCircle, FaClock } from 'react-icons/fa';
+import { FaSearch, FaTrashAlt, FaLaptopMedical, FaBoxes, FaCheckCircle, FaClock, FaExclamationTriangle } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
 
 const ListaReportes = () => {
-  const { isAdmin, user } = useAuth();
-  
-  // Verificar si es admin (usando directamente el rol del usuario)
+  const { user } = useAuth();
   const userIsAdmin = user?.rol === 'admin';
   
-  // Debug: Verificar que isAdmin funciona
-  useEffect(() => {
-    console.log('Usuario actual:', user);
-    console.log('Rol del usuario:', user?.rol);
-    console.log('¿Es admin? (isAdmin()):', isAdmin());
-    console.log('¿Es admin? (userIsAdmin):', userIsAdmin);
-  }, [user, isAdmin, userIsAdmin]);
-  const [activeTab, setActiveTab] = useState('fallas'); // 'fallas' (Reports) o 'bienes' (Assets)
+  const [activeTab, setActiveTab] = useState('fallas'); 
   const [searchTerm, setSearchTerm] = useState('');
   
-  // Estados para los datos
+  // Inicializamos siempre como arrays vacíos
   const [listaReportes, setListaReportes] = useState([]);
   const [listaBienes, setListaBienes] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // --- FUNCIÓN PARA OBTENER DATOS (FETCH) ---
+  // --- FETCH DATOS ---
   const fetchData = async () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      // Nota: Usamos el puerto 3001 según tu backend
+      
       const resReportes = await fetch('http://localhost:3001/api/reports', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        headers: { 'Authorization': `Bearer ${token}` }
       });
       const dataReportes = await resReportes.json();
-      setListaReportes(dataReportes || []);
+      
+      // BLINDAJE 1: Verificamos si es un Array antes de guardar
+      if (Array.isArray(dataReportes)) {
+        setListaReportes(dataReportes);
+      } else {
+        setListaReportes([]);
+      }
 
       const resBienes = await fetch('http://localhost:3001/api/assets', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        headers: { 'Authorization': `Bearer ${token}` }
       });
       const dataBienes = await resBienes.json();
-      setListaBienes(dataBienes || []);
+      
+      // BLINDAJE 2: Verificamos si es un Array antes de guardar
+      if (Array.isArray(dataBienes)) {
+        setListaBienes(dataBienes);
+      } else {
+        console.error("El servidor no devolvió una lista de bienes:", dataBienes);
+        setListaBienes([]);
+      }
 
     } catch (error) {
       console.error("Error cargando datos:", error);
+      // En caso de error, aseguramos que no quede undefined
+      setListaReportes([]);
+      setListaBienes([]);
     } finally {
       setLoading(false);
     }
@@ -56,7 +59,7 @@ const ListaReportes = () => {
     fetchData();
   }, []);
 
-  // --- FUNCIÓN PARA ELIMINAR (Solo admin) ---
+  // --- ELIMINAR ---
   const handleDelete = async (id, tipo) => {
     if (!userIsAdmin) {
       alert('No tienes permisos para eliminar registros');
@@ -76,14 +79,14 @@ const ListaReportes = () => {
             'Authorization': `Bearer ${localStorage.getItem('token')}`
           }
         });
-        fetchData(); // Recargar la tabla
+        fetchData(); 
     } catch (error) {
         console.error("Error eliminando:", error);
         alert('Error al eliminar el registro');
     }
   };
 
-  // --- FUNCIÓN PARA CAMBIAR ESTADO (Solo admin, solo reportes) ---
+  // --- CAMBIAR ESTADO ---
   const toggleEstado = async (id, estadoActual) => {
     if (!userIsAdmin) {
       alert('Solo los administradores pueden cambiar el estado de los reportes');
@@ -107,161 +110,200 @@ const ListaReportes = () => {
     }
   };
 
-  // Filtrado
+  // Filtrado Seguro
   const dataActual = activeTab === 'fallas' ? listaReportes : listaBienes;
-  const filteredData = dataActual.filter(item => 
+  
+  // BLINDAJE 3: Evitar crash si dataActual es null/undefined
+  const safeData = Array.isArray(dataActual) ? dataActual : [];
+  
+  const filteredData = safeData.filter(item => 
     Object.values(item).some(val => 
-      String(val).toLowerCase().includes(searchTerm.toLowerCase())
+      String(val || '').toLowerCase().includes(searchTerm.toLowerCase())
     )
   );
 
-  // Formatear Fecha
   const formatDate = (dateString) => {
     if (!dateString) return '-';
     return new Date(dateString).toLocaleDateString('es-VE');
   };
 
   return (
-    <div className="flex flex-col h-full gap-6">
+    <div className="flex flex-col h-full gap-6 animate-fade-in pb-8">
       
-      {/* HEADER */}
-      <div>
-          <h2 className="text-2xl font-bold text-gray-700 mb-6 flex items-center gap-2">
-        <span className="text-sibci-accent">●</span> Gestión de Reportes y Bienes
-      </h2>
-          <p className="text-gray-500 text-sm">Base de datos SIBCI Guárico</p>
+      {/* HEADER CORPORATIVO */}
+      <div className="bg-[#172554] p-8 rounded-3xl shadow-lg border border-blue-900 flex flex-col md:flex-row justify-between items-center">
+         <div>
+            <h2 className="text-2xl font-bold text-white flex items-center gap-3">
+              <span className="text-yellow-400 text-3xl">●</span> Gestión de Registros
+            </h2>
+            <p className="text-blue-200 text-sm mt-1 ml-8">Base de datos unificada SIBCI Guárico</p>
+         </div>
+         <div className="mt-4 md:mt-0 bg-white/10 backdrop-blur-md px-4 py-2 rounded-full border border-white/20">
+            <span className="text-white text-sm font-medium">
+              Total Registros: {filteredData.length}
+            </span>
+         </div>
       </div>
 
-      {/* TABS */}
-      <div className="flex border-b border-gray-200">
-        <button
-          onClick={() => setActiveTab('fallas')}
-          className={`flex items-center gap-2 px-6 py-3 font-medium text-sm transition-all relative ${
-            activeTab === 'fallas' ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50/50' : 'text-gray-500'
-          }`}
-        >
-          <FaLaptopMedical /> Reportes Técnicos
-        </button>
-        <button
-          onClick={() => setActiveTab('bienes')}
-          className={`flex items-center gap-2 px-6 py-3 font-medium text-sm transition-all relative ${
-            activeTab === 'bienes' ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50/50' : 'text-gray-500'
-          }`}
-        >
-          <FaBoxes /> Inventario de Bienes
-        </button>
-      </div>
+      {/* CONTROLES Y TABS */}
+      <div className="flex flex-col md:flex-row gap-4 justify-between items-center bg-white dark:bg-gray-800 p-2 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
+        
+        {/* TABS */}
+        <div className="flex bg-gray-100 dark:bg-gray-700 p-1 rounded-xl">
+          <button
+            onClick={() => setActiveTab('fallas')}
+            className={`flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold text-sm transition-all ${
+              activeTab === 'fallas' 
+              ? 'bg-white dark:bg-[#172554] text-blue-600 dark:text-white shadow-md' 
+              : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+            }`}
+          >
+            <FaLaptopMedical /> Reportes
+          </button>
+          <button
+            onClick={() => setActiveTab('bienes')}
+            className={`flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold text-sm transition-all ${
+              activeTab === 'bienes' 
+              ? 'bg-white dark:bg-[#172554] text-blue-600 dark:text-white shadow-md' 
+              : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+            }`}
+          >
+            <FaBoxes /> Inventario
+          </button>
+        </div>
 
-      {/* BUSCADOR */}
-      <div className="relative">
-          <FaSearch className="absolute left-3 top-3 text-gray-400" />
-          <input 
-            type="text" 
-            placeholder="Buscar..." 
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+        {/* BUSCADOR */}
+        <div className="relative w-full md:w-auto min-w-[300px]">
+            <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input 
+              type="text" 
+              placeholder="Buscar..." 
+              className="w-full pl-10 pr-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-gray-700 dark:text-white transition-all"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+        </div>
       </div>
 
       {/* TABLA */}
-      <div className="overflow-x-auto bg-white rounded-lg shadow border border-gray-200 min-h-[300px]">
+      <div className="overflow-hidden bg-white dark:bg-gray-800 rounded-2xl shadow-md border border-gray-100 dark:border-gray-700 min-h-[400px]">
         {loading ? (
-            <div className="p-8 text-center text-gray-500">Cargando datos...</div>
+            <div className="flex flex-col items-center justify-center h-64 text-gray-500 dark:text-gray-400">
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mb-4"></div>
+                <p>Cargando datos...</p>
+            </div>
         ) : (
-            <table className="w-full text-left border-collapse">
-            <thead>
-                <tr className="bg-gray-100 text-gray-600 text-sm uppercase">
-                {activeTab === 'fallas' ? (
-                    <>
-                    <th className="p-4">Solicitante</th>
-                    <th className="p-4">Departamento</th>
-                    <th className="p-4">Falla</th>
-                    <th className="p-4">Fecha</th>
-                    <th className="p-4">Estado</th>
-                    </>
-                ) : (
-                    <>
-                    <th className="p-4">Bienes</th>
-                    <th className="p-4">Código</th>
-                    <th className="p-4">Ubicación</th>
-                    <th className="p-4">Fecha</th>
-                    </>
-                )}
-                <th className="p-4 text-center">Acciones</th>
-                </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 text-sm text-gray-700">
-                {filteredData.length > 0 ? (
-                filteredData.map((item) => (
-                    <tr key={item.id} className="hover:bg-gray-50">
-                    
-                    {/* COLUMNAS VARIABLES */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                    <tr className="bg-gray-50 dark:bg-gray-900/50 text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wider border-b border-gray-100 dark:border-gray-700">
                     {activeTab === 'fallas' ? (
                         <>
-                            <td className="p-4 font-medium">{item.solicitante}</td>
-                            <td className="p-4">{item.departamento}</td>
-                            <td className="p-4">
-                                <span className="block font-semibold text-gray-800">{item.tipo_falla}</span>
-                                <span className="text-xs text-gray-500 truncate max-w-[200px] block" title={item.descripcion}>
-                                    {item.descripcion}
-                                </span>
-                            </td>
-                            <td className="p-4">{formatDate(item.createdAt)}</td>
-                            <td className="p-4">
-                                {userIsAdmin ? (
-                                  <button 
-                                      onClick={() => toggleEstado(item.id, item.estado)}
-                                      className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold cursor-pointer transition hover:opacity-80 hover:scale-105 ${
-                                      item.estado === 'Resuelto' 
-                                          ? 'bg-green-100 text-green-700 hover:bg-green-200' 
-                                          : 'bg-red-100 text-red-700 hover:bg-red-200'
-                                  }`}>
-                                      {item.estado === 'Resuelto' ? <FaCheckCircle/> : <FaClock/>}
-                                      {item.estado}
-                                  </button>
-                                ) : (
-                                  <span className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold ${
-                                    item.estado === 'Resuelto' 
-                                        ? 'bg-green-100 text-green-700' 
-                                        : 'bg-red-100 text-red-700'
-                                  }`}>
-                                    {item.estado === 'Resuelto' ? <FaCheckCircle/> : <FaClock/>}
-                                    {item.estado}
-                                  </span>
-                                )}
-                            </td>
+                        <th className="p-5 font-semibold">Solicitante</th>
+                        <th className="p-5 font-semibold">Departamento</th>
+                        <th className="p-5 font-semibold">Falla</th>
+                        <th className="p-5 font-semibold">Fecha</th>
+                        <th className="p-5 font-semibold">Estado</th>
                         </>
                     ) : (
                         <>
-                            <td className="p-4 font-medium">{item.nombre}</td>
-                            <td className="p-4"><span className="bg-gray-100 px-2 py-1 rounded font-mono text-xs">{item.codigo}</span></td>
-                            <td className="p-4">{item.ubicacion}</td>
-                            <td className="p-4">{formatDate(item.createdAt)}</td>
+                        <th className="p-5 font-semibold">ID / Código</th>
+                        <th className="p-5 font-semibold">Título</th>
+                        <th className="p-5 font-semibold">Condición</th>
+                        <th className="p-5 font-semibold">Fecha Registro</th>
                         </>
                     )}
-                    
-                    {/* ACCIONES - Solo visible para administradores */}
-                    <td className="p-4 text-center flex justify-center gap-2">
-                        {userIsAdmin ? (
-                          <button 
-                              onClick={() => handleDelete(item.id, activeTab)} 
-                              className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition hover:scale-110"
-                              title="Eliminar registro"
-                          >
-                              <FaTrashAlt size={18} />
-                          </button>
-                        ) : (
-                          <span className="text-gray-400 text-sm">Solo lectura</span>
-                        )}
-                    </td>
+                    <th className="p-5 text-center font-semibold">Acciones</th>
                     </tr>
-                ))
-                ) : (
-                    <tr><td colSpan="6" className="p-8 text-center text-gray-400">No hay datos registrados.</td></tr>
-                )}
-            </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-gray-100 dark:divide-gray-700 text-sm text-gray-700 dark:text-gray-300">
+                    {filteredData.length > 0 ? (
+                    filteredData.map((item) => (
+                        <tr key={item.id} className="hover:bg-blue-50/50 dark:hover:bg-blue-900/20 transition-colors">
+                        
+                        {activeTab === 'fallas' ? (
+                            <>
+                                <td className="p-5 font-bold text-gray-900 dark:text-white">{item.solicitante}</td>
+                                <td className="p-5">{item.departamento}</td>
+                                <td className="p-5">
+                                    <span className="block font-semibold text-blue-600 dark:text-blue-400">{item.tipo_falla}</span>
+                                    <span className="text-xs text-gray-500 dark:text-gray-500 truncate max-w-[200px] block" title={item.descripcion}>
+                                        {item.descripcion}
+                                    </span>
+                                </td>
+                                <td className="p-5">{formatDate(item.createdAt)}</td>
+                                <td className="p-5">
+                                    {userIsAdmin ? (
+                                      <button 
+                                          onClick={() => toggleEstado(item.id, item.estado)}
+                                          className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold cursor-pointer transition-all hover:scale-105 ${
+                                          item.estado === 'Resuelto' 
+                                              ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' 
+                                              : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                                      }`}>
+                                          {item.estado === 'Resuelto' ? <FaCheckCircle/> : <FaClock/>}
+                                          {item.estado}
+                                      </button>
+                                    ) : (
+                                      <span className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold ${
+                                        item.estado === 'Resuelto' 
+                                            ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' 
+                                            : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                                      }`}>
+                                        {item.estado === 'Resuelto' ? <FaCheckCircle/> : <FaClock/>}
+                                        {item.estado}
+                                      </span>
+                                    )}
+                                </td>
+                            </>
+                        ) : (
+                            // BIENES (CORREGIDO PARA EVITAR PANTALLA BLANCA)
+                            <>
+                                <td className="p-5 font-mono text-xs text-gray-500 dark:text-gray-400">
+                                    <span className="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded border dark:border-gray-600">
+                                      {item.codigo || item.id_manual || item.id}
+                                    </span>
+                                </td>
+                                <td className="p-5 font-bold text-gray-900 dark:text-white">
+                                    {item.titulo || item.nombre || <span className="text-red-400 italic">Sin Título</span>}
+                                </td>
+                                <td className="p-5">
+                                    <span className="bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-wide">
+                                        {item.condicion || item.ubicacion || '-'}
+                                    </span>
+                                </td>
+                                <td className="p-5 text-gray-500">{formatDate(item.createdAt)}</td>
+                            </>
+                        )}
+                        
+                        <td className="p-5 text-center">
+                            {userIsAdmin ? (
+                              <button 
+                                  onClick={() => handleDelete(item.id, activeTab)} 
+                                  className="p-2.5 bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-900/20 dark:hover:bg-red-900/40 dark:text-red-400 rounded-lg transition-all hover:scale-110 shadow-sm"
+                                  title="Eliminar registro"
+                              >
+                                  <FaTrashAlt size={16} />
+                              </button>
+                            ) : (
+                              <span className="text-gray-300 dark:text-gray-600 text-xs select-none">Solo lectura</span>
+                            )}
+                        </td>
+                        </tr>
+                    ))
+                    ) : (
+                        <tr>
+                          <td colSpan="6" className="p-12 text-center">
+                             <div className="flex flex-col items-center justify-center text-gray-400 dark:text-gray-500">
+                                <FaExclamationTriangle className="text-4xl mb-3 opacity-20" />
+                                <p>No se encontraron registros</p>
+                             </div>
+                          </td>
+                        </tr>
+                    )}
+                </tbody>
+              </table>
+            </div>
         )}
       </div>
     </div>
