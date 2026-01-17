@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import ReCAPTCHA from 'react-google-recaptcha';
 import { FaUser, FaLock, FaSignInAlt, FaUserPlus, FaEnvelope, FaIdCard, FaArrowLeft } from 'react-icons/fa';
 import logoSibci from '../assets/logo-sibci.png';
 
@@ -14,8 +15,15 @@ const Login = () => {
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [recaptchaToken, setRecaptchaToken] = useState(null);
+  const recaptchaRefLogin = useRef(null);
+  const recaptchaRefRegister = useRef(null);
   const { login, register } = useAuth();
   const navigate = useNavigate();
+
+  // Clave pública de reCAPTCHA (reemplazar con tu clave real)
+  // En Vite, las variables de entorno se acceden con import.meta.env
+  const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY || '6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI'; // Clave de prueba de Google
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -25,18 +33,47 @@ const Login = () => {
   const toggleFlip = () => {
     setError('');
     setFormData({ username: '', password: '', nombre: '', email: '' });
+    setRecaptchaToken(null);
+    // Resetear el reCAPTCHA correspondiente
+    if (isLogin && recaptchaRefLogin.current) {
+      recaptchaRefLogin.current.reset();
+    } else if (!isLogin && recaptchaRefRegister.current) {
+      recaptchaRefRegister.current.reset();
+    }
     setIsLogin(!isLogin);
   };
+
+  const handleRecaptchaChange = (token) => {
+    setRecaptchaToken(token);
+    setError('');
+  };
+
+  // Resetear reCAPTCHA cuando cambia la vista
+  useEffect(() => {
+    setRecaptchaToken(null);
+    if (isLogin && recaptchaRefLogin.current) {
+      recaptchaRefLogin.current.reset();
+    } else if (!isLogin && recaptchaRefRegister.current) {
+      recaptchaRefRegister.current.reset();
+    }
+  }, [isLogin]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    
+    // Validar reCAPTCHA
+    if (!recaptchaToken) {
+      setError('Por favor, completa el reCAPTCHA para continuar');
+      return;
+    }
+
     setLoading(true);
 
     try {
       let result;
       if (isLogin) {
-        result = await login(formData.username, formData.password);
+        result = await login(formData.username, formData.password, recaptchaToken);
       } else {
         if (!formData.nombre || !formData.email) {
           setError('Todos los campos son requeridos');
@@ -47,17 +84,38 @@ const Login = () => {
           formData.username,
           formData.password,
           formData.nombre,
-          formData.email
+          formData.email,
+          recaptchaToken
         );
       }
 
       if (result.success) {
+        // Resetear reCAPTCHA
+        if (isLogin && recaptchaRefLogin.current) {
+          recaptchaRefLogin.current.reset();
+        } else if (!isLogin && recaptchaRefRegister.current) {
+          recaptchaRefRegister.current.reset();
+        }
+        setRecaptchaToken(null);
         navigate('/');
       } else {
         setError(result.error);
+        // Resetear reCAPTCHA en caso de error
+        if (isLogin && recaptchaRefLogin.current) {
+          recaptchaRefLogin.current.reset();
+        } else if (!isLogin && recaptchaRefRegister.current) {
+          recaptchaRefRegister.current.reset();
+        }
+        setRecaptchaToken(null);
       }
     } catch (err) {
       setError('Error de conexión. Por favor, intenta nuevamente.');
+      if (isLogin && recaptchaRefLogin.current) {
+        recaptchaRefLogin.current.reset();
+      } else if (!isLogin && recaptchaRefRegister.current) {
+        recaptchaRefRegister.current.reset();
+      }
+      setRecaptchaToken(null);
     } finally {
       setLoading(false);
     }
@@ -134,10 +192,21 @@ const Login = () => {
                 <p>Credenciales demo: <strong>admin</strong> / <strong>admin123</strong></p>
               </div>
 
+              {/* reCAPTCHA */}
+              <div className="flex justify-center mt-4">
+                <ReCAPTCHA
+                  ref={recaptchaRefLogin}
+                  sitekey={RECAPTCHA_SITE_KEY}
+                  onChange={handleRecaptchaChange}
+                  theme="light"
+                  key="recaptcha-login"
+                />
+              </div>
+
               <button
                 type="submit"
-                disabled={loading}
-                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold py-3 rounded-xl shadow-lg transform transition hover:-translate-y-0.5 flex justify-center items-center gap-2 mt-2"
+                disabled={loading || !recaptchaToken}
+                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold py-3 rounded-xl shadow-lg transform transition hover:-translate-y-0.5 flex justify-center items-center gap-2 mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? <span className="animate-spin">⏳</span> : <><FaSignInAlt /> Iniciar Sesión</>}
               </button>
@@ -227,10 +296,21 @@ const Login = () => {
                 </div>
               </div>
 
+              {/* reCAPTCHA */}
+              <div className="flex justify-center mt-4">
+                <ReCAPTCHA
+                  ref={recaptchaRefRegister}
+                  sitekey={RECAPTCHA_SITE_KEY}
+                  onChange={handleRecaptchaChange}
+                  theme="light"
+                  key="recaptcha-register"
+                />
+              </div>
+
               <button
                 type="submit"
-                disabled={loading}
-                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold py-3 rounded-xl shadow-lg transform transition hover:-translate-y-0.5 flex justify-center items-center gap-2 mt-2"
+                disabled={loading || !recaptchaToken}
+                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold py-3 rounded-xl shadow-lg transform transition hover:-translate-y-0.5 flex justify-center items-center gap-2 mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? <span className="animate-spin">⏳</span> : <><FaUserPlus /> Registrarse</>}
               </button>

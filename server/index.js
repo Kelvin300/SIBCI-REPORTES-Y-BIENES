@@ -4,6 +4,7 @@ const { Sequelize, DataTypes } = require('sequelize');
 const nodemailer = require('nodemailer');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
+const axios = require('axios');
 require('dotenv').config();
 
 const app = express();
@@ -149,11 +150,42 @@ const requireAdmin = (req, res, next) => {
 
 // --- RUTAS API ---
 
+// Función para verificar reCAPTCHA
+const verifyRecaptcha = async (token) => {
+  if (!token) return false;
+  
+  // En modo desarrollo, si no hay clave secreta configurada, permitir pasar
+  if (!process.env.RECAPTCHA_SECRET_KEY) {
+    console.warn('⚠️  RECAPTCHA_SECRET_KEY no configurado. reCAPTCHA deshabilitado en desarrollo.');
+    return true;
+  }
+
+  try {
+    const response = await axios.post('https://www.google.com/recaptcha/api/siteverify', null, {
+      params: {
+        secret: process.env.RECAPTCHA_SECRET_KEY,
+        response: token
+      }
+    });
+
+    return response.data.success === true;
+  } catch (error) {
+    console.error('Error verificando reCAPTCHA:', error);
+    return false;
+  }
+};
+
 // === AUTENTICACIÓN ===
 app.post('/api/auth/login', async (req, res) => {
   try {
-    const { username, password } = req.body;
+    const { username, password, recaptchaToken } = req.body;
     if (!username || !password) return res.status(400).json({ error: 'Datos incompletos' });
+
+    // Verificar reCAPTCHA
+    const recaptchaValid = await verifyRecaptcha(recaptchaToken);
+    if (!recaptchaValid) {
+      return res.status(400).json({ error: 'Verificación reCAPTCHA fallida. Por favor, intenta nuevamente.' });
+    }
 
     const user = await User.findOne({ where: { username } });
     if (!user) return res.status(401).json({ error: 'Usuario o contraseña incorrectos' });
@@ -175,8 +207,14 @@ app.post('/api/auth/login', async (req, res) => {
 
 app.post('/api/auth/register', async (req, res) => {
   try {
-    const { username, password, nombre, email } = req.body;
+    const { username, password, nombre, email, recaptchaToken } = req.body;
     if (!username || !password || !nombre || !email) return res.status(400).json({ error: 'Datos incompletos' });
+
+    // Verificar reCAPTCHA
+    const recaptchaValid = await verifyRecaptcha(recaptchaToken);
+    if (!recaptchaValid) {
+      return res.status(400).json({ error: 'Verificación reCAPTCHA fallida. Por favor, intenta nuevamente.' });
+    }
 
     const userExists = await User.findOne({ where: { username } });
     if (userExists) return res.status(400).json({ error: 'El usuario ya existe' });

@@ -38,11 +38,12 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const login = async (username, password) => {
+  const login = async (username, password, recaptchaToken) => {
     try {
       const response = await axios.post('http://localhost:3001/api/auth/login', {
         username,
-        password
+        password,
+        recaptchaToken
       });
       
       const { token: newToken, user: userData } = response.data;
@@ -60,13 +61,14 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const register = async (username, password, nombre, email) => {
+  const register = async (username, password, nombre, email, recaptchaToken) => {
     try {
       const response = await axios.post('http://localhost:3001/api/auth/register', {
         username,
         password,
         nombre,
-        email
+        email,
+        recaptchaToken
       });
       
       const { token: newToken, user: userData } = response.data;
