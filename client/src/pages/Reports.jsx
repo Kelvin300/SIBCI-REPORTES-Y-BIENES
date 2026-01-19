@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 // IMPORTANTE: Ajusta la ruta si tu carpeta components está en otro nivel
-import SuccessModal from "../components/SuccessModal"; // <-- Ajusta ruta si es necesario
+import SuccessModal from "../components/SuccessModal"; 
 
 const Reports = () => {
   // Estado del Formulario
@@ -14,12 +14,12 @@ const Reports = () => {
   
   const [loading, setLoading] = useState(false);
 
-  // NUEVO: Estado para controlar el Modal
+  // Estado para controlar el Modal
   const [modalState, setModalState] = useState({
     isOpen: false,
     title: '',
     message: '',
-    isError: false // Para cambiar el color del icono
+    isError: false 
   });
 
   const handleChange = (e) => {
@@ -52,7 +52,7 @@ const Reports = () => {
           isOpen: true,
           title: 'Reporte Guardado (Con Aviso)',
           message: `El reporte se guardó, pero hubo un problema al enviar el correo:\n${emailError}`,
-          isError: true // Lo mostramos rojo o naranja por el error de correo
+          isError: true 
         });
         console.error('Error al enviar correo:', emailError);
       } else {
@@ -68,7 +68,6 @@ const Reports = () => {
       setFormData({ solicitante: '', departamento: '', tipo_falla: 'Hardware', descripcion: '' });
 
     } catch (error) {
-      // Lógica de error en la petición
       console.error('Error completo:', error);
       
       let errorMsg = 'Ocurrió un error inesperado.';
@@ -88,41 +87,107 @@ const Reports = () => {
   };
 
   return (
-    <div className="relative"> {/* relative ayuda al posicionamiento */}
-      <h2 className="text-2xl font-bold text-gray-700 mb-6 flex items-center gap-2">
-        <span className="text-sibci-accent">●</span> Reportar Falla Técnica
-      </h2>
+    <div className="space-y-6"> {/* Espacio vertical entre el header y el formulario */}
       
-      <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Nombre del Solicitante</label>
-          <input required name="solicitante" value={formData.solicitante} onChange={handleChange} className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Ej: Juan Pérez" />
+      {/* --- 1. HEADER / BANNER AZUL (Estilo Gestión) --- */}
+      {/* Usamos un color arbitrario hex [#1e2538] similar a tu captura, o puedes usar bg-slate-900 */}
+      <div className="bg-[#172554] rounded-2xl p-6 shadow-lg text-white flex flex-col md:flex-row md:justify-between md:items-center gap-4">
+        
+        {/* Lado Izquierdo: Título y Subtítulo */}
+        <div className="flex items-center gap-3">
+          <div>
+            <h2 className="text-2xl font-bold text-white tracking-tight">
+              <span className="text-yellow-400 text-3xl">●</span> Reportar Falla Técnica
+            </h2>
+            <p className="text-blue-200 text-sm mt-1 ml-6">
+              Formulario de registro de incidencias SIBCI Guárico
+            </p>
+          </div>
         </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Departamento / Oficina</label>
-          <input required name="departamento" value={formData.departamento} onChange={handleChange} className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Ej: Prensa" />
-        </div>
-        <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Falla</label>
-            <select name="tipo_falla" value={formData.tipo_falla} onChange={handleChange} className="w-full p-2 border rounded bg-white">
-                <option value="Hardware">Hardware (Equipo físico)</option>
-                <option value="Software">Software (Programas/SO)</option>
-                <option value="Redes">Internet / Redes</option>
-                <option value="Electricidad">Eléctrico</option>
-            </select>
-        </div>
-        <div className="md:col-span-2">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Descripción Detallada</label>
-          <textarea required name="descripcion" value={formData.descripcion} onChange={handleChange} rows="4" className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Describa el problema..."></textarea>
-        </div>
-        <div className="md:col-span-2 text-right">
-            <button type="submit" disabled={loading} className="bg-sibci-primary hover:bg-sibci-secondary text-white px-6 py-2 rounded shadow transition-colors">
-                {loading ? 'Enviando...' : 'Enviar Reporte'}
-            </button>
-        </div>
-      </form>
 
-      {/* AQUÍ ESTÁ LA MAGIA: El Modal se renderiza al final */}
+        {/* Lado Derecho: Badge (Estilo "Total Registros") */}
+        <div>
+          <span className="inline-block px-4 py-2 rounded-full border border-white/20 bg-white/10 text-sm text-gray-100 backdrop-blur-sm">
+            Nuevo Ticket
+          </span>
+        </div>
+      </div>
+
+
+      {/* --- 2. TARJETA DEL FORMULARIO (Blanca) --- */}
+      <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6 md:p-8">
+        <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          
+          {/* Nombre */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Nombre del Solicitante</label>
+            <input 
+              required 
+              name="solicitante" 
+              value={formData.solicitante} 
+              onChange={handleChange} 
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1e2538] focus:border-[#1e2538] outline-none transition-all" 
+              placeholder="Ej: Juan Pérez" 
+            />
+          </div>
+
+          {/* Departamento */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Departamento / Oficina</label>
+            <input 
+              required 
+              name="departamento" 
+              value={formData.departamento} 
+              onChange={handleChange} 
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1e2538] focus:border-[#1e2538] outline-none transition-all" 
+              placeholder="Ej: Prensa" 
+            />
+          </div>
+
+          {/* Tipo de Falla */}
+          <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Tipo de Falla</label>
+              <select 
+                name="tipo_falla" 
+                value={formData.tipo_falla} 
+                onChange={handleChange} 
+                className="w-full p-3 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-[#1e2538] focus:border-[#1e2538] outline-none transition-all"
+              >
+                  <option value="Hardware">Hardware (Equipo físico)</option>
+                  <option value="Software">Software (Programas/SO)</option>
+                  <option value="Redes">Internet / Redes</option>
+                  <option value="Electricidad">Eléctrico</option>
+              </select>
+          </div>
+
+          {/* Descripción */}
+          <div className="md:col-span-2">
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Descripción Detallada</label>
+            <textarea 
+              required 
+              name="descripcion" 
+              value={formData.descripcion} 
+              onChange={handleChange} 
+              rows="4" 
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1e2538] focus:border-[#1e2538] outline-none transition-all resize-y" 
+              placeholder="Describa el problema..."
+            ></textarea>
+          </div>
+
+          {/* Botón de envío */}
+          <div className="md:col-span-2 flex justify-end mt-4">
+              <button 
+                type="submit" 
+                disabled={loading} 
+                className="bg-[#172554]  hover:bg-[#2c365e] text-white font-medium px-8 py-3 rounded-lg shadow-md transition-colors duration-200 disabled:opacity-70 disabled:cursor-not-allowed"
+              >
+                  {loading ? 'Enviando...' : 'Enviar Reporte'}
+              </button>
+          </div>
+        </form>
+      </div>
+
+      {/* --- MODAL --- */}
       <SuccessModal 
         isOpen={modalState.isOpen}
         title={modalState.title}

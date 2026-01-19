@@ -4,18 +4,24 @@ export default {
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
+  darkMode: 'class', // <--- IMPORTANTE: Habilita el modo oscuro manual
   theme: {
     extend: {
       colors: {
         sibci: {
-          // Azul Oscuro (Bordes del logo/Letras) - Para el menú lateral
           primary: '#172554', 
-          // Azul Cielo (Centro de la estrella) - Para botones y acentos
           secondary: '#38bdf8', 
-          // Amarillo (Punta de la estrella) - Para resaltar la opción activa
           accent: '#facc15',
-          // Rojo (Detalle de la estrella) - Para errores o alertas
           danger: '#ef4444', 
+        }
+      },
+      animation: {
+        'fade-in': 'fadeIn 0.5s ease-out',
+      },
+      keyframes: {
+        fadeIn: {
+          '0%': { opacity: '0', transform: 'translateY(10px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
         }
       }
     },
