@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { FaEdit, FaTrashAlt, FaSave, FaTimes, FaLock } from 'react-icons/fa';
 // Importamos el Modal
 import SuccessModal from '../components/SuccessModal'; 
+import { apiUrl } from '../config/api';
 
 const Assets = () => {
   const { user } = useAuth();
@@ -37,7 +38,7 @@ const Assets = () => {
 
   const fetchAssets = async () => {
     try {
-      const res = await axios.get('http://localhost:3001/api/assets', getAuthHeaders());
+      const res = await axios.get(apiUrl('/api/assets'), getAuthHeaders());
       setAssets(res.data);
     } catch (error) {
       console.error("Error al obtener bienes:", error);
@@ -65,7 +66,7 @@ const Assets = () => {
         estado: newAsset.estado
       };
 
-      await axios.post('http://localhost:3001/api/assets', assetParaEnviar, getAuthHeaders());
+      await axios.post(apiUrl('/api/assets'), assetParaEnviar, getAuthHeaders());
       
       setModalState({
         isOpen: true,
@@ -113,7 +114,7 @@ const Assets = () => {
         estado: editForm.estado
       };
 
-      await axios.put(`http://localhost:3001/api/assets/${id}`, dataToUpdate, getAuthHeaders());
+      await axios.put(apiUrl(`/api/assets/${id}`), dataToUpdate, getAuthHeaders());
       setEditingId(null);
       fetchAssets();
       
@@ -138,7 +139,7 @@ const Assets = () => {
   const handleDelete = async (id) => {
     if (!confirm('¿Estás seguro de eliminar este bien?')) return;
     try {
-      await axios.delete(`http://localhost:3001/api/assets/${id}`, getAuthHeaders());
+      await axios.delete(apiUrl(`/api/assets/${id}`), getAuthHeaders());
       fetchAssets();
     } catch (error) {
       console.error(error);

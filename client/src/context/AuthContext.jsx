@@ -1,5 +1,6 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import axios from 'axios';
+import { apiUrl } from '../config/api';
 
 const AuthContext = createContext();
 
@@ -28,7 +29,7 @@ export const AuthProvider = ({ children }) => {
 
   const verifyToken = async () => {
     try {
-      const response = await axios.get('http://localhost:3001/api/auth/verify');
+      const response = await axios.get(apiUrl('/api/auth/verify'));
       setUser(response.data.user);
     } catch (error) {
       // Token inválido, limpiar
@@ -40,7 +41,7 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (username, password, recaptchaToken) => {
     try {
-      const response = await axios.post('http://localhost:3001/api/auth/login', {
+      const response = await axios.post(apiUrl('/api/auth/login'), {
         username,
         password,
         recaptchaToken
@@ -63,7 +64,7 @@ export const AuthProvider = ({ children }) => {
 
   const register = async (username, password, nombre, email, recaptchaToken) => {
     try {
-      const response = await axios.post('http://localhost:3001/api/auth/register', {
+      const response = await axios.post(apiUrl('/api/auth/register'), {
         username,
         password,
         nombre,

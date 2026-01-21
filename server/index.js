@@ -8,7 +8,7 @@ const axios = require('axios');
 require('dotenv').config();
 
 const app = express();
-const PORT = 3001; 
+const PORT = process.env.PORT || 3001;
 
 // Middlewares
 app.use(cors());
@@ -17,7 +17,8 @@ app.use(express.json());
 // --- CONFIGURACIÓN BASE DE DATOS (SQLite) ---
 const sequelize = new Sequelize({
   dialect: 'sqlite',
-  storage: './sibci_database.sqlite',
+  // En Render: monta un disco persistente en /var/data y usa SQLITE_PATH=/var/data/sibci_database.sqlite
+  storage: process.env.SQLITE_PATH || './sibci_database.sqlite',
   logging: false
 });
 

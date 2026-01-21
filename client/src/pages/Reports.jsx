@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import axios from 'axios';
 // IMPORTANTE: Ajusta la ruta si tu carpeta components está en otro nivel
 import SuccessModal from "../components/SuccessModal"; 
+import { apiUrl } from '../config/api';
 
 const Reports = () => {
   // Estado del Formulario
@@ -36,7 +37,7 @@ const Reports = () => {
     setLoading(true);
     
     try {
-      const response = await axios.post('http://localhost:3001/api/reports', formData);
+      const response = await axios.post(apiUrl('/api/reports'), formData);
       const { emailSent, emailError } = response.data;
       
       // Lógica de respuesta exitosa

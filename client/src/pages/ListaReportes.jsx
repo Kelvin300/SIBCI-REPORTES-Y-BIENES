@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FaSearch, FaTrashAlt, FaLaptopMedical, FaBoxes, FaCheckCircle, FaClock, FaExclamationTriangle } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
+import { apiUrl } from '../config/api';
 
 const ListaReportes = () => {
   const { user } = useAuth();
@@ -20,7 +21,7 @@ const ListaReportes = () => {
     try {
       const token = localStorage.getItem('token');
       
-      const resReportes = await fetch('http://localhost:3001/api/reports', {
+      const resReportes = await fetch(apiUrl('/api/reports'), {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const dataReportes = await resReportes.json();
@@ -32,7 +33,7 @@ const ListaReportes = () => {
         setListaReportes([]);
       }
 
-      const resBienes = await fetch('http://localhost:3001/api/assets', {
+      const resBienes = await fetch(apiUrl('/api/assets'), {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const dataBienes = await resBienes.json();
@@ -70,8 +71,8 @@ const ListaReportes = () => {
 
     try {
         const endpoint = tipo === 'fallas' 
-            ? `http://localhost:3001/api/reports/${id}` 
-            : `http://localhost:3001/api/assets/${id}`;
+            ? apiUrl(`/api/reports/${id}`)
+            : apiUrl(`/api/assets/${id}`);
             
         await fetch(endpoint, { 
           method: 'DELETE',
@@ -95,7 +96,7 @@ const ListaReportes = () => {
     
     const nuevoEstado = estadoActual === 'Pendiente' ? 'Resuelto' : 'Pendiente';
     try {
-        await fetch(`http://localhost:3001/api/reports/${id}`, {
+        await fetch(apiUrl(`/api/reports/${id}`), {
             method: 'PUT',
             headers: { 
               'Content-Type': 'application/json',
