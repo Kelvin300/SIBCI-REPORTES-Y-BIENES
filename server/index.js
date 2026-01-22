@@ -121,9 +121,11 @@ const verifyEmailConfig = () => {
 // Verificar conexión del transporter
 transporter.verify((error, success) => {
   if (error) {
-    console.warn('⚠️  El servicio de correo no está disponible (Revisa tu archivo .env)');
+    console.warn('⚠️  El servicio de correo no está disponible (revisa las variables de entorno y credenciales)');
+    console.error(error);
   } else {
     console.log('✓ Servicio de correo verificado y listo');
+    console.log(success);
   }
 });
 
@@ -368,4 +370,48 @@ app.listen(PORT, () => {
   console.log(`📅 Fecha: ${new Date().toLocaleString('es-VE')}`);
   verifyEmailConfig();
   console.log('='.repeat(50) + '\n');
+});
+
+// Endpoint de diagnóstico para probar configuración de correo desde producción (Render)
+app.get('/api/test-email', async (req, res) => {
+  try {
+    const envInfo = {
+      EMAIL_USER_set: !!process.env.EMAIL_USER,
+      EMAIL_PASS_set: !!process.env.EMAIL_PASS,
+      ADMIN_EMAIL_set: !!process.env.ADMIN_EMAIL
+    };
+
+    // Intentar verificar transporter
+    let verifyResult = null;
+    try {
+      await transporter.verify();
+      verifyResult = { ok: true, message: 'transporter verified' };
+    } catch (err) {
+      verifyResult = { ok: false, message: err.message, stack: err.stack };
+    }
+
+    // Intentar enviar correo de prueba sólo si las vars están presentes
+    let sendResult = null;
+    if (process.env.EMAIL_USER && process.env.EMAIL_PASS && process.env.ADMIN_EMAIL) {
+      const mailOptions = {
+        from: process.env.EMAIL_USER,
+        to: process.env.ADMIN_EMAIL,
+        subject: 'SIBCI - Prueba de correo desde servidor',
+        text: `Prueba enviada desde servidor en ${new Date().toLocaleString()}`
+      };
+
+      try {
+        const info = await transporter.sendMail(mailOptions);
+        sendResult = { ok: true, info };
+      } catch (err) {
+        sendResult = { ok: false, message: err.message, stack: err.stack };
+      }
+    } else {
+      sendResult = { ok: false, message: 'Faltan variables de entorno para enviar correo' };
+    }
+
+    res.json({ envInfo, verifyResult, sendResult });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
