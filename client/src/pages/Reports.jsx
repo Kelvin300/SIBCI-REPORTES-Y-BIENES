@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 // IMPORTANTE: Ajusta la ruta si tu carpeta components está en otro nivel
 import SuccessModal from "../components/SuccessModal"; 
@@ -14,6 +14,9 @@ const Reports = () => {
   });
   
   const [loading, setLoading] = useState(false);
+
+  const [departments, setDepartments] = useState([]);
+  const [selectedEncargado, setSelectedEncargado] = useState('');
 
   // Estado para controlar el Modal
   const [modalState, setModalState] = useState({
@@ -31,6 +34,24 @@ const Reports = () => {
   const closeModal = () => {
     setModalState({ ...modalState, isOpen: false });
   };
+
+  useEffect(() => {
+    const fetchDepartments = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const res = await fetch(apiUrl('/api/departments'), {
+          headers: token ? { Authorization: `Bearer ${token}` } : {}
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setDepartments(data || []);
+        }
+      } catch (err) {
+        console.error('No se pudieron cargar departamentos:', err);
+      }
+    };
+    fetchDepartments();
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -135,14 +156,34 @@ const Reports = () => {
           {/* Departamento */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">Departamento / Oficina</label>
-            <input 
-              required 
-              name="departamento" 
-              value={formData.departamento} 
-              onChange={handleChange} 
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1e2538] focus:border-[#1e2538] outline-none transition-all" 
-              placeholder="Ej: Prensa" 
-            />
+            {departments.length > 0 ? (
+              <>
+                <select
+                  required
+                  name="departamento"
+                  value={formData.departamento}
+                  onChange={(e) => { handleChange(e); const sel = departments.find(d => d.name === e.target.value); setSelectedEncargado(sel ? sel.encargado : ''); }}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1e2538] focus:border-[#1e2538] outline-none transition-all"
+                >
+                  <option value="">-- Selecciona un departamento --</option>
+                  {departments.map(d => (
+                    <option key={d.name} value={d.name}>{d.name}</option>
+                  ))}
+                </select>
+                {selectedEncargado && (
+                  <p className="text-sm text-gray-500 mt-2">Encargado: {selectedEncargado}</p>
+                )}
+              </>
+            ) : (
+              <input 
+                required 
+                name="departamento" 
+                value={formData.departamento} 
+                onChange={handleChange} 
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1e2538] focus:border-[#1e2538] outline-none transition-all" 
+                placeholder="Ej: Prensa" 
+              />
+            )}
           </div>
 
           {/* Tipo de Falla */}

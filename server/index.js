@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const { Sequelize, DataTypes } = require('sequelize');
 const nodemailer = require('nodemailer');
+const PDFDocument = require('pdfkit');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const axios = require('axios');
@@ -57,10 +58,26 @@ const Asset = sequelize.define('Asset', {
 const Report = sequelize.define('Report', {
   solicitante: { type: DataTypes.STRING, allowNull: false },
   departamento: { type: DataTypes.STRING, allowNull: false },
+  encargado: { type: DataTypes.STRING, allowNull: true },
   tipo_falla: { type: DataTypes.STRING }, 
   descripcion: { type: DataTypes.TEXT },
   estado: { type: DataTypes.STRING, defaultValue: 'Pendiente' }
 });
+
+// Modelo de Departments (encargado por departamento)
+const Department = sequelize.define('Department', {
+  name: { type: DataTypes.STRING, allowNull: false, unique: true },
+  encargado: { type: DataTypes.STRING, allowNull: false }
+});
+  
+  // Asegurar que la tabla Department esté sincronizada (segundo sync para cambios añadidos dinámicamente)
+  sequelize.sync({ alter: true })
+    .then(() => {
+      console.log('✓ Tabla Department sincronizada');
+    })
+    .catch((err) => {
+      console.error('✗ Error sincronizando Department:', err);
+    });
 
 // 3. Modelo de Usuarios
 const User = sequelize.define('User', {
@@ -322,7 +339,15 @@ app.post('/api/reports', authenticateToken, async (req, res) => {
   console.log('\n📥 Creando nuevo reporte...');
   try {
     const { solicitante, departamento, tipo_falla, descripcion } = req.body;
-    const newReport = await Report.create(req.body);
+    // Verificar que el departamento exista y tenga encargado
+    const dept = await Department.findOne({ where: { name: departamento } });
+    if (!dept) {
+      return res.status(400).json({ error: 'Departamento no encontrado. Contacte al administrador para asignar un encargado.' });
+    }
+    if (!dept.encargado) {
+      return res.status(400).json({ error: 'El departamento seleccionado no tiene un encargado asignado. Contacte al administrador.' });
+    }
+    const newReport = await Report.create({ solicitante, departamento, encargado: dept.encargado, tipo_falla, descripcion });
     
     let emailSent = false;
     let emailError = null;
@@ -381,6 +406,64 @@ app.put('/api/reports/:id', authenticateToken, requireAdmin, async (req, res) =>
       await Report.update(req.body, { where: { id: req.params.id } });
       res.json({ message: 'Estado actualizado' });
     } catch (error) { res.status(500).json({ error: error.message }); }
+});
+
+// --- DEPARTMENTS ---
+app.get('/api/departments', authenticateToken, async (req, res) => {
+  try {
+    const departments = await Department.findAll({ order: [['name', 'ASC']] });
+    res.json(departments);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/departments', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { name, encargado } = req.body;
+    if (!name || !encargado) return res.status(400).json({ error: 'Nombre y encargado son requeridos' });
+    const [dept, created] = await Department.upsert({ name, encargado }, { returning: true });
+    res.json({ department: dept, created });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- PDF EXPORT ---
+app.get('/api/reports/:id/pdf', authenticateToken, async (req, res) => {
+  try {
+    const id = req.params.id;
+    const report = await Report.findByPk(id);
+    if (!report) return res.status(404).json({ error: 'Reporte no encontrado' });
+
+    // Generar PDF en memoria
+    const doc = new PDFDocument({ margin: 50 });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="reporte-${id}.pdf"`);
+
+    doc.fontSize(20).text('Reporte SIBCI', { align: 'center' });
+    doc.moveDown();
+
+    doc.fontSize(12).text(`ID: ${report.id}`);
+    doc.text(`Solicitante: ${report.solicitante}`);
+    doc.text(`Departamento: ${report.departamento}`);
+    doc.text(`Encargado: ${report.encargado || '-'}`);
+    doc.text(`Tipo de falla: ${report.tipo_falla || '-'}`);
+    doc.text(`Estado: ${report.estado}`);
+    doc.moveDown();
+    doc.text('Descripción:', { underline: true });
+    doc.moveDown(0.5);
+    doc.text(report.descripcion || '-', { align: 'justify' });
+
+    doc.moveDown();
+    doc.text(`Fecha de registro: ${new Date(report.createdAt).toLocaleString('es-VE')}`);
+
+    doc.end();
+    doc.pipe(res);
+  } catch (err) {
+    console.error('Error generando PDF:', err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Iniciar servidor

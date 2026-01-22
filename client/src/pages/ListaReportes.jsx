@@ -111,6 +111,32 @@ const ListaReportes = () => {
     }
   };
 
+  // Descargar PDF de reporte (incluye token de autorización)
+  const handleDownloadPDF = async (id) => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(apiUrl(`/api/reports/${id}/pdf`), {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || 'Error descargando PDF');
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `reporte-${id}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Error descargando PDF:', err);
+      alert('No se pudo descargar el PDF');
+    }
+  };
+
   // Filtrado Seguro
   const dataActual = activeTab === 'fallas' ? listaReportes : listaBienes;
   
@@ -200,8 +226,9 @@ const ListaReportes = () => {
                     <tr className="bg-gray-50 dark:bg-gray-900/50 text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wider border-b border-gray-100 dark:border-gray-700">
                     {activeTab === 'fallas' ? (
                         <>
-                        <th className="p-5 font-semibold">Solicitante</th>
-                        <th className="p-5 font-semibold">Departamento</th>
+                    <th className="p-5 font-semibold">Solicitante</th>
+                    <th className="p-5 font-semibold">Departamento</th>
+                    <th className="p-5 font-semibold">Encargado</th>
                         <th className="p-5 font-semibold">Falla</th>
                         <th className="p-5 font-semibold">Fecha</th>
                         <th className="p-5 font-semibold">Estado</th>
@@ -226,6 +253,7 @@ const ListaReportes = () => {
                             <>
                                 <td className="p-5 font-bold text-gray-900 dark:text-white">{item.solicitante}</td>
                                 <td className="p-5">{item.departamento}</td>
+                                <td className="p-5">{item.encargado || '-'}</td>
                                 <td className="p-5">
                                     <span className="block font-semibold text-blue-600 dark:text-blue-400">{item.tipo_falla}</span>
                                     <span className="text-xs text-gray-500 dark:text-gray-500 truncate max-w-[200px] block" title={item.descripcion}>
@@ -277,7 +305,14 @@ const ListaReportes = () => {
                             </>
                         )}
                         
-                        <td className="p-5 text-center">
+                        <td className="p-5 text-center flex items-center justify-center gap-2">
+                            <button
+                              onClick={() => handleDownloadPDF(item.id)}
+                              className="p-2.5 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg transition-all shadow-sm"
+                              title="Descargar PDF"
+                            >
+                              PDF
+                            </button>
                             {userIsAdmin ? (
                               <button 
                                   onClick={() => handleDelete(item.id, activeTab)} 
