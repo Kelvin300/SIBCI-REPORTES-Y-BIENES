@@ -101,12 +101,22 @@ sequelize.sync({ alter: true })
   });
 
 // --- CONFIGURACIÓN DE CORREO ---
+// Preferir configuración explícita por host/port en producción.
+const smtpHost = process.env.SMTP_HOST || 'smtp.gmail.com';
+const smtpPort = process.env.SMTP_PORT ? parseInt(process.env.SMTP_PORT, 10) : 587;
+const smtpSecure = (process.env.SMTP_SECURE === 'true');
+
+console.log(`→ Configuración SMTP: host=${smtpHost} port=${smtpPort} secure=${smtpSecure}`);
+
 const transporter = nodemailer.createTransport({
-  service: 'gmail',
+  host: smtpHost,
+  port: smtpPort,
+  secure: smtpSecure,
   auth: {
-    user: process.env.EMAIL_USER, 
+    user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS
-  }
+  },
+  tls: { rejectUnauthorized: false }
 });
 
 // Verificar configuración de correo
