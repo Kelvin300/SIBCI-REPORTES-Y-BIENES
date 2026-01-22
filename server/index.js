@@ -108,6 +108,8 @@ const smtpSecure = (process.env.SMTP_SECURE === 'true');
 
 console.log(`→ Configuración SMTP: host=${smtpHost} port=${smtpPort} secure=${smtpSecure}`);
 
+const SMTP_TIMEOUT = process.env.SMTP_TIMEOUT ? parseInt(process.env.SMTP_TIMEOUT, 10) : 7000;
+
 const transporter = nodemailer.createTransport({
   host: smtpHost,
   port: smtpPort,
@@ -116,7 +118,11 @@ const transporter = nodemailer.createTransport({
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS
   },
-  tls: { rejectUnauthorized: false }
+  tls: { rejectUnauthorized: false },
+  // Timeouts para evitar bloqueos largos en entornos que limitan SMTP
+  connectionTimeout: SMTP_TIMEOUT,
+  greetingTimeout: SMTP_TIMEOUT,
+  socketTimeout: SMTP_TIMEOUT
 });
 
 // Verificar configuración de correo
@@ -129,15 +135,19 @@ const verifyEmailConfig = () => {
 };
 
 // Verificar conexión del transporter
-transporter.verify((error, success) => {
-  if (error) {
-    console.warn('⚠️  El servicio de correo no está disponible (revisa las variables de entorno y credenciales)');
-    console.error(error);
-  } else {
+// Verificar conexión del transporter con timeout protegido
+(async () => {
+  try {
+    await Promise.race([
+      transporter.verify(),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('transporter.verify timeout')), SMTP_TIMEOUT + 2000))
+    ]);
     console.log('✓ Servicio de correo verificado y listo');
-    console.log(success);
+  } catch (error) {
+    console.warn('⚠️  El servicio de correo no está disponible o la verificación excedió el tiempo:');
+    console.error(error && error.message ? error.message : error);
   }
-});
+})();
 
 // --- MIDDLEWARES DE AUTENTICACIÓN ---
 
@@ -391,10 +401,13 @@ app.get('/api/test-email', async (req, res) => {
       ADMIN_EMAIL_set: !!process.env.ADMIN_EMAIL
     };
 
-    // Intentar verificar transporter
+    // Intentar verificar transporter con timeout para evitar que la petición quede colgada
     let verifyResult = null;
     try {
-      await transporter.verify();
+      await Promise.race([
+        transporter.verify(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('verify timeout')), SMTP_TIMEOUT + 2000))
+      ]);
       verifyResult = { ok: true, message: 'transporter verified' };
     } catch (err) {
       verifyResult = { ok: false, message: err.message, stack: err.stack };
