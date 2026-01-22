@@ -70,13 +70,13 @@ const Department = sequelize.define('Department', {
   encargado: { type: DataTypes.STRING, allowNull: false }
 });
   
-  // Asegurar que la tabla Department esté sincronizada (segundo sync para cambios añadidos dinámicamente)
-  sequelize.sync({ alter: true })
+  // Crear la tabla Department sólo si no existe (sin usar `alter` para evitar alteraciones sobre otras tablas)
+  Department.sync()
     .then(() => {
-      console.log('✓ Tabla Department sincronizada');
+      console.log('✓ Tabla Department creada o ya existente');
     })
     .catch((err) => {
-      console.error('✗ Error sincronizando Department:', err);
+      console.error('✗ Error creando Department:', err);
     });
 
 // 3. Modelo de Usuarios
@@ -424,6 +424,20 @@ app.post('/api/departments', authenticateToken, requireAdmin, async (req, res) =
     if (!name || !encargado) return res.status(400).json({ error: 'Nombre y encargado son requeridos' });
     const [dept, created] = await Department.upsert({ name, encargado }, { returning: true });
     res.json({ department: dept, created });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/departments/:name', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const name = req.params.name;
+    const deleted = await Department.destroy({ where: { name } });
+    if (deleted) {
+      res.json({ message: 'Department eliminado' });
+    } else {
+      res.status(404).json({ error: 'Department no encontrado' });
+    }
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

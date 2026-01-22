@@ -15,6 +15,12 @@ const ListaReportes = () => {
   const [listaBienes, setListaBienes] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // --- Departments management (admin) ---
+  const [showDeptModal, setShowDeptModal] = useState(false);
+  const [departmentsList, setDepartmentsList] = useState([]);
+  const [deptForm, setDeptForm] = useState({ name: '', encargado: '' });
+  const [editingDept, setEditingDept] = useState(false);
+
   // --- FETCH DATOS ---
   const fetchData = async () => {
     setLoading(true);
@@ -59,6 +65,73 @@ const ListaReportes = () => {
   useEffect(() => {
     fetchData();
   }, []);
+
+  const fetchDepartments = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(apiUrl('/api/departments'), { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) {
+        const data = await res.json();
+        setDepartmentsList(Array.isArray(data) ? data : []);
+      }
+    } catch (err) {
+      console.error('Error cargando departamentos:', err);
+    }
+  };
+
+  const openDeptModal = async () => {
+    await fetchDepartments();
+    setShowDeptModal(true);
+    setDeptForm({ name: '', encargado: '' });
+    setEditingDept(false);
+  };
+
+  const handleDeptFormChange = (e) => setDeptForm({ ...deptForm, [e.target.name]: e.target.value });
+
+  const handleDeptSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(apiUrl('/api/departments'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(deptForm)
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Error guardando departamento');
+      }
+      await fetchDepartments();
+      setDeptForm({ name: '', encargado: '' });
+      setEditingDept(false);
+    } catch (err) {
+      alert('Error: ' + (err.message || err));
+    }
+  };
+
+  const handleDeptEdit = (dept) => {
+    setDeptForm({ name: dept.name, encargado: dept.encargado });
+    setEditingDept(true);
+    setShowDeptModal(true);
+  };
+
+  const handleDeptDelete = async (name) => {
+    if (!confirm(`Eliminar departamento '${name}'?`)) return;
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(apiUrl(`/api/departments/${encodeURIComponent(name)}`), {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Error eliminando departamento');
+      }
+      await fetchDepartments();
+    } catch (err) {
+      alert('Error: ' + (err.message || err));
+    }
+  };
 
   // --- ELIMINAR ---
   const handleDelete = async (id, tipo) => {
@@ -170,7 +243,63 @@ const ListaReportes = () => {
               Total Registros: {filteredData.length}
             </span>
          </div>
+         {userIsAdmin && (
+           <div className="ml-4">
+             <button onClick={openDeptModal} className="bg-white text-sm px-3 py-2 rounded-md text-[#172554] font-semibold">Gestionar Departamentos</button>
+           </div>
+         )}
       </div>
+
+      {/* Modal / Gestión de Departamentos (Admin) */}
+      {showDeptModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-2xl">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-bold">Gestionar Departamentos</h3>
+              <div className="flex items-center gap-2">
+                <button onClick={() => { setShowDeptModal(false); setEditingDept(false); setDeptForm({ name:'', encargado:'' }); }} className="text-sm text-gray-500">Cerrar</button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div>
+                <label className="block text-sm font-semibold mb-1">Nombre</label>
+                <input name="name" value={deptForm.name} onChange={handleDeptFormChange} className="w-full p-2 border rounded" />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold mb-1">Encargado</label>
+                <input name="encargado" value={deptForm.encargado} onChange={handleDeptFormChange} className="w-full p-2 border rounded" />
+              </div>
+            </div>
+            <div className="flex gap-2 mb-4">
+              <button onClick={handleDeptSubmit} className="bg-[#172554] text-white px-4 py-2 rounded">{editingDept ? 'Actualizar' : 'Crear'}</button>
+              <button onClick={() => { setDeptForm({ name:'', encargado:''}); setEditingDept(false); }} className="px-4 py-2 rounded border">Limpiar</button>
+            </div>
+
+            <div>
+              <h4 className="font-semibold mb-2">Departamentos existentes</h4>
+              <div className="space-y-2 max-h-64 overflow-auto">
+                {departmentsList.length === 0 ? (
+                  <p className="text-sm text-gray-500">No hay departamentos registrados.</p>
+                ) : (
+                  departmentsList.map(d => (
+                    <div key={d.name} className="flex justify-between items-center p-2 border rounded">
+                      <div>
+                        <div className="font-semibold">{d.name}</div>
+                        <div className="text-sm text-gray-600">Encargado: {d.encargado}</div>
+                      </div>
+                      <div className="flex gap-2">
+                        <button onClick={() => handleDeptEdit(d)} className="text-sm px-3 py-1 rounded border">Editar</button>
+                        <button onClick={() => handleDeptDelete(d.name)} className="text-sm px-3 py-1 rounded bg-red-50 text-red-600">Eliminar</button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* CONTROLES Y TABS */}
       <div className="flex flex-col md:flex-row gap-4 justify-between items-center bg-white dark:bg-gray-800 p-2 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
@@ -306,13 +435,15 @@ const ListaReportes = () => {
                         )}
                         
                         <td className="p-5 text-center flex items-center justify-center gap-2">
-                            <button
-                              onClick={() => handleDownloadPDF(item.id)}
-                              className="p-2.5 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg transition-all shadow-sm"
-                              title="Descargar PDF"
-                            >
-                              PDF
-                            </button>
+                            {activeTab === 'fallas' && (
+                              <button
+                                onClick={() => handleDownloadPDF(item.id)}
+                                className="p-2.5 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg transition-all shadow-sm"
+                                title="Descargar PDF"
+                              >
+                                PDF
+                              </button>
+                            )}
                             {userIsAdmin ? (
                               <button 
                                   onClick={() => handleDelete(item.id, activeTab)} 
