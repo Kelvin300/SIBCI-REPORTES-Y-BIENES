@@ -1,229 +1,107 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { FaUser, FaLock, FaSignInAlt, FaUserPlus } from 'react-icons/fa';
+import ReCAPTCHA from 'react-google-recaptcha';
+import { FaUser, FaLock, FaSignInAlt } from 'react-icons/fa';
 import logoSibci from '../assets/logo-sibci.png';
 
 const Login = () => {
-  const [isLogin, setIsLogin] = useState(true);
-  const [formData, setFormData] = useState({
-    username: '',
-    password: '',
-    nombre: '',
-    email: ''
-  });
+  const [formData, setFormData] = useState({ username: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login, register } = useAuth();
+  const [recaptchaToken, setRecaptchaToken] = useState(null);
+  const recaptchaRefLogin = useRef(null);
+  const { login } = useAuth();
   const navigate = useNavigate();
+
+  const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY || '6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI';
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
     setError('');
   };
 
+  const handleRecaptchaChange = (token) => {
+    setRecaptchaToken(token);
+    setError('');
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    if (!recaptchaToken) {
+      setError('Por favor, completa el reCAPTCHA para continuar');
+      return;
+    }
     setLoading(true);
-
     try {
-      let result;
-      if (isLogin) {
-        result = await login(formData.username, formData.password);
-      } else {
-        if (!formData.nombre || !formData.email) {
-          setError('Todos los campos son requeridos');
-          setLoading(false);
-          return;
-        }
-        result = await register(
-          formData.username,
-          formData.password,
-          formData.nombre,
-          formData.email
-        );
-      }
-
+      const result = await login(formData.username, formData.password, recaptchaToken);
       if (result.success) {
+        if (recaptchaRefLogin.current) recaptchaRefLogin.current.reset();
+        setRecaptchaToken(null);
         navigate('/');
       } else {
         setError(result.error);
+        if (recaptchaRefLogin.current) recaptchaRefLogin.current.reset();
+        setRecaptchaToken(null);
       }
     } catch (err) {
       setError('Error de conexión. Por favor, intenta nuevamente.');
+      if (recaptchaRefLogin.current) recaptchaRefLogin.current.reset();
+      setRecaptchaToken(null);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-blue-50 p-4">
-      <div className="w-full max-w-md">
-        {/* Logo y Título */}
-        <div className="text-center mb-8">
-          <div className="flex justify-center mb-4">
-            <img 
-              src={logoSibci} 
-              alt="Logo SIBCI" 
-              className="w-24 h-24 object-contain"
-            />
-          </div>
-          <h1 className="text-3xl font-extrabold text-sibci-primary mb-2">
-            SIBCI <span className="text-gray-600 font-light">Guárico</span>
-          </h1>
-          <p className="text-gray-500">Sistema Integral de Gestión</p>
-        </div>
-
-        {/* Tarjeta de Login/Registro */}
-        <div className="bg-white rounded-2xl shadow-2xl border-t-4 border-blue-600 p-8">
-          {/* Tabs */}
-          <div className="flex mb-6 border-b border-gray-200">
-            <button
-              onClick={() => {
-                setIsLogin(true);
-                setError('');
-                setFormData({ username: '', password: '', nombre: '', email: '' });
-              }}
-              className={`flex-1 py-3 text-center font-semibold transition-colors ${
-                isLogin
-                  ? 'text-blue-600 border-b-2 border-blue-600'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              <FaSignInAlt className="inline-block mr-2" />
-              Iniciar Sesión
-            </button>
-            <button
-              onClick={() => {
-                setIsLogin(false);
-                setError('');
-                setFormData({ username: '', password: '', nombre: '', email: '' });
-              }}
-              className={`flex-1 py-3 text-center font-semibold transition-colors ${
-                !isLogin
-                  ? 'text-blue-600 border-b-2 border-blue-600'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              <FaUserPlus className="inline-block mr-2" />
-              Registrarse
-            </button>
+    <div className="min-h-screen flex items-center justify-center bg-slate-900 p-4">
+      <div className="w-full max-w-md z-10">
+        <div className="w-full bg-white/90 rounded-2xl shadow-2xl border border-white/20 p-8">
+          <div className="text-center mb-8">
+            <div className="bg-white rounded-full w-24 h-24 mx-auto flex items-center justify-center shadow-lg mb-4 p-2">
+              <img src={logoSibci} alt="Logo SIBCI" className="w-full h-full object-contain" />
+            </div>
+            <h1 className="text-3xl font-bold text-slate-800">Iniciar Sesión</h1>
+            <p className="text-slate-500 text-sm">Ingresa tus credenciales</p>
           </div>
 
-          {/* Formulario */}
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-5">
             {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
-                {error}
-              </div>
-            )}
-
-            {!isLogin && (
-              <>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Nombre Completo
-                  </label>
-                  <input
-                    type="text"
-                    name="nombre"
-                    value={formData.nombre}
-                    onChange={handleChange}
-                    required={!isLogin}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                    placeholder="Ej: Juan Pérez"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Correo Electrónico
-                  </label>
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    required={!isLogin}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                    placeholder="correo@ejemplo.com"
-                  />
-                </div>
-              </>
+              <div className="bg-red-100 text-red-600 p-3 rounded-lg text-sm text-center border border-red-200">{error}</div>
             )}
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Usuario
-              </label>
-              <div className="relative">
-                <FaUser className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                <input
-                  type="text"
-                  name="username"
-                  value={formData.username}
-                  onChange={handleChange}
-                  required
-                  className="w-full pl-10 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                  placeholder="Nombre de usuario"
-                />
+              <label className="block text-xs font-bold text-slate-500 uppercase mb-1 ml-1">Usuario</label>
+              <div className="relative group">
+                <FaUser className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input type="text" name="username" value={formData.username} onChange={handleChange} className="w-full pl-10 p-3 bg-slate-50 border rounded-xl" placeholder="Ingrese su usuario" />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Contraseña
-              </label>
-              <div className="relative">
-                <FaLock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                <input
-                  type="password"
-                  name="password"
-                  value={formData.password}
-                  onChange={handleChange}
-                  required
-                  className="w-full pl-10 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                  placeholder="••••••••"
-                />
+              <label className="block text-xs font-bold text-slate-500 uppercase mb-1 ml-1">Contraseña</label>
+              <div className="relative group">
+                <FaLock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input type="password" name="password" value={formData.password} onChange={handleChange} className="w-full pl-10 p-3 bg-slate-50 border rounded-xl" placeholder="••••••••" />
               </div>
             </div>
 
-            {isLogin && (
-              <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded-lg">
-                <p className="font-semibold mb-1">Credenciales por defecto:</p>
-                <p>Usuario: <strong>admin</strong></p>
-                <p>Contraseña: <strong>admin123</strong></p>
-              </div>
-            )}
+            <div className="flex justify-center mt-4">
+              <ReCAPTCHA ref={recaptchaRefLogin} sitekey={RECAPTCHA_SITE_KEY} onChange={handleRecaptchaChange} />
+            </div>
 
             <button
               type="submit"
-              disabled={loading}
-              className="w-full bg-sibci-primary hover:bg-sibci-secondary text-white font-semibold py-3 px-6 rounded-lg shadow-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            >
-              {loading ? (
-                <>
-                  <span className="animate-spin">⏳</span>
-                  {isLogin ? 'Iniciando sesión...' : 'Registrando...'}
-                </>
-              ) : (
-                <>
-                  {isLogin ? <FaSignInAlt /> : <FaUserPlus />}
-                  {isLogin ? 'Iniciar Sesión' : 'Registrarse'}
-                </>
-              )}
+              disabled={loading || !recaptchaToken}
+              className={`w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 ${loading || !recaptchaToken ? 'opacity-60 cursor-not-allowed' : 'hover:from-blue-700 hover:to-purple-700'}`}>
+              {loading ? '⏳' : (<><FaSignInAlt /> <span>Iniciar Sesión</span></>)}
             </button>
           </form>
         </div>
-
-        {/* Footer */}
-        <p className="text-center text-sm text-gray-500 mt-6">
-          SIBCI Guárico &copy; 2025
-        </p>
       </div>
     </div>
   );
 };
 
 export default Login;
-

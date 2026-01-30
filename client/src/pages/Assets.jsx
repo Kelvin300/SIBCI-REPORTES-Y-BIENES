@@ -1,226 +1,380 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
-import { FaEdit, FaTrashAlt, FaSave, FaTimes } from 'react-icons/fa';
+import { FaEdit, FaTrashAlt, FaSave, FaTimes, FaLock } from 'react-icons/fa';
+// Importamos el Modal
+import SuccessModal from '../components/SuccessModal'; 
+import { apiUrl } from '../config/api';
 
 const Assets = () => {
-  const { isAdmin, user } = useAuth();
-  const userIsAdmin = user?.rol === 'admin';
+  const { user } = useAuth();
   
-  // Debug
-  useEffect(() => {
-    console.log('Assets - Usuario:', user);
-    console.log('Assets - ¿Es admin?', userIsAdmin);
-  }, [user, userIsAdmin]);
+  // Verificamos roles
+  const userIsAdmin = user?.rol === 'admin' || user?.rol === 'superadmin';
+  const userIsJefe = user?.rol === 'jefe';
+
   const [assets, setAssets] = useState([]);
-  const [newAsset, setNewAsset] = useState({ codigo: '', nombre: '', marca: '', ubicacion: '' });
+  
+  // Para manejar uploads temporales
+  const handleUploadClick = (assetId) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '*/*';
+    input.onchange = async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      try {
+        const form = new FormData();
+        form.append('file', file);
+        await axios.post(apiUrl(`/api/assets/${assetId}/upload`), form, { 
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}`, 'Content-Type': 'multipart/form-data' }
+        });
+        setModalState({ isOpen: true, title: 'Subida Exitosa', message: 'Documento adjuntado correctamente', isError: false });
+        fetchAssets();
+      } catch (err) {
+        console.error('Error subiendo archivo', err);
+        setModalState({ isOpen: true, title: 'Error', message: 'No se pudo subir el documento', isError: true });
+      }
+    };
+    input.click();
+  };
+  
+  // ESTADO INICIAL FORMULARIO
+  const [newAsset, setNewAsset] = useState({ id: '', titulo: '', condicion: '', estado: 'Operativo' });
   const [editingId, setEditingId] = useState(null);
-  const [editForm, setEditForm] = useState({ codigo: '', nombre: '', marca: '', ubicacion: '', estado: '' });
+  const [editForm, setEditForm] = useState({ id: '', titulo: '', condicion: '', estado: '' });
+
+  // ESTADO PARA EL MODAL
+  const [modalState, setModalState] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    isError: false
+  });
+
+  const closeModal = () => {
+    setModalState({ ...modalState, isOpen: false });
+  };
+
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem('token');
+    return { headers: { 'Authorization': `Bearer ${token}` } };
+  };
+
+  const handleApprove = async (id) => {
+    try {
+      await axios.put(apiUrl(`/api/assets/${id}/approve`), {}, getAuthHeaders());
+      fetchAssets();
+    } catch (error) {
+      console.error('Error aprobando bien:', error);
+      setModalState({ isOpen: true, title: 'Error', message: 'No se pudo aprobar el bien', isError: true });
+    }
+  };
 
   const fetchAssets = async () => {
-    const res = await axios.get('http://localhost:3001/api/assets');
-    setAssets(res.data);
+    try {
+      const res = await axios.get(apiUrl('/api/assets'), getAuthHeaders());
+      setAssets(res.data);
+    } catch (error) {
+      console.error("Error al obtener bienes:", error);
+    }
   };
 
   useEffect(() => {
-    fetchAssets();
-  }, []);
+    // Buscamos datos si es admin, superadmin o jefe (jefe verá solo sus bienes)
+    if (user && (userIsAdmin || userIsJefe)) {
+        fetchAssets();
+    }
+  }, [userIsAdmin, userIsJefe, user]);
 
+  // --- LOGICA DE AGREGAR, EDITAR, ELIMINAR (Igual que tenías) ---
   const handleAdd = async (e) => {
     e.preventDefault();
     try {
-      await axios.post('http://localhost:3001/api/assets', newAsset);
-      setNewAsset({ codigo: '', nombre: '', marca: '', ubicacion: '' });
+      const assetParaEnviar = {
+        codigo: newAsset.id,          
+        id_manual: newAsset.id,
+        nombre: newAsset.titulo,      
+        titulo: newAsset.titulo,
+        ubicacion: newAsset.condicion,     
+        condicion: newAsset.condicion,
+        estado: newAsset.estado
+      };
+
+      await axios.post(apiUrl('/api/assets'), assetParaEnviar, getAuthHeaders());
+      
+      setModalState({
+        isOpen: true,
+        title: '¡Bien Registrado!',
+        message: 'El equipo ha sido añadido al inventario correctamente.',
+        isError: false
+      });
+
+      setNewAsset({ id: '', titulo: '', condicion: '', estado: 'Operativo' });
       fetchAssets();
     } catch (error) {
-      alert('Error: Verifique que el código no esté repetido');
+      console.error(error);
+      setModalState({
+        isOpen: true,
+        title: 'Error al Registrar',
+        message: 'Verifique que el Código no esté repetido o falten datos.',
+        isError: true
+      });
     }
   };
 
   const handleEdit = (asset) => {
-    setEditingId(asset.id);
+    setEditingId(asset.id); 
     setEditForm({
-      codigo: asset.codigo,
-      nombre: asset.nombre,
-      marca: asset.marca || '',
-      ubicacion: asset.ubicacion || '',
+      id: asset.codigo || asset.id_manual || asset.id, 
+      titulo: asset.titulo || asset.nombre, 
+      condicion: asset.condicion || asset.ubicacion || '',
       estado: asset.estado || 'Operativo'
     });
   };
 
   const handleCancelEdit = () => {
     setEditingId(null);
-    setEditForm({ codigo: '', nombre: '', marca: '', ubicacion: '', estado: '' });
+    setEditForm({ id: '', titulo: '', condicion: '', estado: '' });
   };
 
   const handleSaveEdit = async (id) => {
     try {
-      await axios.put(`http://localhost:3001/api/assets/${id}`, editForm);
+      const dataToUpdate = {
+        codigo: editForm.id,
+        nombre: editForm.titulo,
+        titulo: editForm.titulo,
+        ubicacion: editForm.condicion,
+        condicion: editForm.condicion,
+        estado: editForm.estado
+      };
+
+      await axios.put(apiUrl(`/api/assets/${id}`), dataToUpdate, getAuthHeaders());
       setEditingId(null);
       fetchAssets();
+      
+      setModalState({
+        isOpen: true,
+        title: 'Actualización Exitosa',
+        message: 'Los datos del bien han sido actualizados.',
+        isError: false
+      });
+
     } catch (error) {
-      alert('Error al actualizar el bien');
       console.error(error);
+      setModalState({
+        isOpen: true,
+        title: 'Error al Actualizar',
+        message: 'No se pudieron guardar los cambios.',
+        isError: true
+      });
     }
   };
 
   const handleDelete = async (id) => {
     if (!confirm('¿Estás seguro de eliminar este bien?')) return;
     try {
-      await axios.delete(`http://localhost:3001/api/assets/${id}`);
+      await axios.delete(apiUrl(`/api/assets/${id}`), getAuthHeaders());
       fetchAssets();
     } catch (error) {
-      alert('Error al eliminar el bien');
       console.error(error);
+      setModalState({
+        isOpen: true,
+        title: 'Error al Eliminar',
+        message: 'No se pudo eliminar el registro.',
+        isError: true
+      });
     }
   };
 
-  return (
-    <div>
-      <h2 className="text-2xl font-bold text-gray-700 mb-6">
-        <span className="text-sibci-accent">●</span> Inventario de Bienes Nacionales
-      </h2>
-      {/* Formulario Rápido - Solo visible para administradores */}
-      {userIsAdmin && (
-        <div className="bg-gray-50 p-4 rounded mb-8 border border-gray-200">
-          <h3 className="text-lg font-semibold mb-3 text-sibci-primary">Registrar Nuevo Equipo</h3>
-          <form onSubmit={handleAdd} className="grid grid-cols-1 md:grid-cols-5 gap-3">
-              <input required placeholder="Cód. Bien" value={newAsset.codigo} onChange={e => setNewAsset({...newAsset, codigo: e.target.value})} className="p-2 border rounded" />
-              <input required placeholder="Nombre (Ej: Monitor)" value={newAsset.nombre} onChange={e => setNewAsset({...newAsset, nombre: e.target.value})} className="p-2 border rounded" />
-              <input placeholder="Marca" value={newAsset.marca} onChange={e => setNewAsset({...newAsset, marca: e.target.value})} className="p-2 border rounded" />
-              <input required placeholder="Ubicación" value={newAsset.ubicacion} onChange={e => setNewAsset({...newAsset, ubicacion: e.target.value})} className="p-2 border rounded" />
-              <button type="submit" className="bg-green-600 text-white rounded hover:bg-green-700">Agregar</button>
-          </form>
-        </div>
-      )}
+  // Si el usuario no existe o no tiene rol permitido, denegar acceso
+  if (!user || (!userIsAdmin && !userIsJefe)) {
+    return (
+      <div className="flex flex-col items-center justify-center h-96 bg-gray-50 rounded-2xl shadow-inner border border-gray-200 text-gray-500">
+        <FaLock className="text-6xl mb-4 text-gray-300" />
+        <h2 className="text-2xl font-bold text-gray-600">Acceso Restringido</h2>
+        <p>No tienes permisos para ver esta sección.</p>
+      </div>
+    );
+  }
 
-      {/* Tabla */}
-      <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse">
-            <thead>
-                <tr className="bg-gray-200 text-gray-700">
-                    <th className="p-3 border-b">Código</th>
-                    <th className="p-3 border-b">Equipo</th>
-                    <th className="p-3 border-b">Marca</th>
-                    <th className="p-3 border-b">Ubicación</th>
-                    <th className="p-3 border-b">Estado</th>
-                    {userIsAdmin && <th className="p-3 border-b text-center">Acciones</th>}
-                </tr>
-            </thead>
-            <tbody>
-                {assets.map(asset => (
-                    <tr key={asset.id} className="hover:bg-gray-50 border-b">
-                        {editingId === asset.id ? (
-                            // Modo edición
-                            <>
-                                <td className="p-3">
-                                    <input
-                                        type="text"
-                                        value={editForm.codigo}
-                                        onChange={(e) => setEditForm({...editForm, codigo: e.target.value})}
-                                        className="w-full p-1 border rounded text-sm font-mono"
-                                    />
-                                </td>
-                                <td className="p-3">
-                                    <input
-                                        type="text"
-                                        value={editForm.nombre}
-                                        onChange={(e) => setEditForm({...editForm, nombre: e.target.value})}
-                                        className="w-full p-1 border rounded text-sm"
-                                    />
-                                </td>
-                                <td className="p-3">
-                                    <input
-                                        type="text"
-                                        value={editForm.marca}
-                                        onChange={(e) => setEditForm({...editForm, marca: e.target.value})}
-                                        className="w-full p-1 border rounded text-sm"
-                                    />
-                                </td>
-                                <td className="p-3">
-                                    <input
-                                        type="text"
-                                        value={editForm.ubicacion}
-                                        onChange={(e) => setEditForm({...editForm, ubicacion: e.target.value})}
-                                        className="w-full p-1 border rounded text-sm"
-                                    />
-                                </td>
-                                <td className="p-3">
-                                    <select
-                                        value={editForm.estado}
-                                        onChange={(e) => setEditForm({...editForm, estado: e.target.value})}
-                                        className="w-full p-1 border rounded text-sm"
-                                    >
-                                        <option value="Operativo">Operativo</option>
-                                        <option value="En Reparación">En Reparación</option>
-                                        <option value="Fuera de Servicio">Fuera de Servicio</option>
-                                    </select>
-                                </td>
-                                <td className="p-3">
-                                    <div className="flex gap-2 justify-center">
-                                        <button
-                                            onClick={() => handleSaveEdit(asset.id)}
-                                            className="p-2 bg-green-500 text-white rounded hover:bg-green-600 transition"
-                                            title="Guardar"
-                                        >
-                                            <FaSave size={16} />
-                                        </button>
-                                        <button
-                                            onClick={handleCancelEdit}
-                                            className="p-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition"
-                                            title="Cancelar"
-                                        >
-                                            <FaTimes size={16} />
-                                        </button>
-                                    </div>
-                                </td>
-                            </>
-                        ) : (
-                            // Modo visualización
-                            <>
-                                <td className="p-3 font-mono font-bold text-blue-600">{asset.codigo}</td>
-                                <td className="p-3">{asset.nombre}</td>
-                                <td className="p-3">{asset.marca || '-'}</td>
-                                <td className="p-3">{asset.ubicacion || '-'}</td>
-                                <td className="p-3">
-                                    <span className={`px-2 py-1 text-xs rounded-full ${
-                                        asset.estado === 'Operativo' 
-                                            ? 'bg-green-100 text-green-800' 
-                                            : asset.estado === 'En Reparación'
-                                            ? 'bg-yellow-100 text-yellow-800'
-                                            : 'bg-red-100 text-red-800'
-                                    }`}>
-                                        {asset.estado}
-                                    </span>
-                                </td>
-                                {userIsAdmin && (
+  // --- RENDERIZADO DEL ADMIN (Con el nuevo Diseño) ---
+  return (
+    <div className="space-y-6">
+      
+      {/* --- 1. HEADER / BANNER AZUL (Igual que Reportes y Gestión) --- */}
+      <div className="bg-[#172554] rounded-2xl p-6 shadow-lg text-white flex flex-col md:flex-row md:justify-between md:items-center gap-4">
+        
+        {/* Lado Izquierdo */}
+        <div className="flex items-center gap-3">
+           <div>
+             <h2 className="text-2xl font-bold text-white tracking-tight">
+              <span className="text-yellow-400 text-2xl leading-none">●</span> Inventario de Bienes Nacionales
+             </h2>
+             <p className="text-blue-200 text-sm mt-1 ml-5">
+               Control y administración de equipos SIBCI
+             </p>
+           </div>
+        </div>
+
+        {/* Lado Derecho: Contador Dinámico */}
+        <div>
+          <span className="inline-block px-4 py-2 rounded-full border border-white/20 bg-white/10 text-sm text-gray-100 backdrop-blur-sm">
+            Total Activos: {assets.length}
+          </span>
+        </div>
+      </div>
+
+      {/* --- 2. TARJETA DE REGISTRO (Ahora blanca y limpia) --- */}
+      <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
+          <h3 className="text-lg font-bold mb-4 text-gray-700 border-b pb-2">{userIsJefe ? 'Solicitar Nuevo Bien (Pendiente de Aprobación)' : 'Registrar Nuevo Equipo'}</h3>
+          <form onSubmit={handleAdd} className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <input 
+                required 
+                type="text" 
+                placeholder="Código / ID Manual" 
+                value={newAsset.id} 
+                onChange={e => setNewAsset({...newAsset, id: e.target.value})} 
+                className="p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1e2538] focus:border-[#1e2538] outline-none font-mono text-sm" 
+              />
+              <input 
+                required 
+                type="text"
+                placeholder="Título (Ej: Monitor)" 
+                value={newAsset.titulo} 
+                onChange={e => setNewAsset({...newAsset, titulo: e.target.value})} 
+                className="p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1e2538] focus:border-[#1e2538] outline-none" 
+              />
+              <input 
+                required 
+                type="text"
+                placeholder="Condición (Ej: Bueno)" 
+                value={newAsset.condicion} 
+                onChange={e => setNewAsset({...newAsset, condicion: e.target.value})} 
+                className="p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1e2538] focus:border-[#1e2538] outline-none" 
+              />
+              <button type="submit" className="bg-green-600 text-white rounded-lg hover:bg-green-700 font-bold transition-colors shadow-sm">
+                {userIsJefe ? 'Solicitar Bien' : 'Agregar Equipo'}
+              </button>
+          </form>
+      </div>
+
+      {/* --- 3. TARJETA DE LA TABLA --- */}
+      <div className="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden">
+        <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-gray-50 text-gray-700 text-sm uppercase tracking-wider border-b">
+                    <th className="p-4 font-semibold">ID / Código</th>
+                    <th className="p-4 font-semibold">Título</th>
+                    <th className="p-4 font-semibold">Condición</th>
+                    <th className="p-4 font-semibold">Estado</th>
+                    <th className="p-4 font-semibold">Registrado por</th>
+                    <th className="p-4 font-semibold">Documento</th>
+                    <th className="p-4 font-semibold text-center">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                    {assets.map(asset => (
+                        <tr key={asset.id} className="hover:bg-gray-50 transition-colors">
+                            {editingId === asset.id ? (
+                                // MODO EDICIÓN
+                                <>
+                                    <td className="p-3"><input type="text" value={editForm.id} onChange={(e) => setEditForm({...editForm, id: e.target.value})} className="w-full p-2 border rounded bg-white text-sm font-mono"/></td>
+                                    <td className="p-3"><input type="text" value={editForm.titulo} onChange={(e) => setEditForm({...editForm, titulo: e.target.value})} className="w-full p-2 border rounded text-sm"/></td>
+                                    <td className="p-3"><input type="text" value={editForm.condicion} onChange={(e) => setEditForm({...editForm, condicion: e.target.value})} className="w-full p-2 border rounded text-sm"/></td>
+                                    <td className="p-3">
+                                        <select value={editForm.estado} onChange={(e) => setEditForm({...editForm, estado: e.target.value})} className="w-full p-2 border rounded text-sm">
+                                            <option value="Operativo">Operativo</option>
+                                            <option value="En Reparación">En Reparación</option>
+                                            <option value="Fuera de Servicio">Fuera de Servicio</option>
+                                        </select>
+                                    </td>
+                                    <td className="p-3">&nbsp;</td>
+                                    <td className="p-3">&nbsp;</td>
                                     <td className="p-3">
                                         <div className="flex gap-2 justify-center">
-                                            <button
-                                                onClick={() => handleEdit(asset)}
-                                                className="p-2 text-blue-500 hover:bg-blue-50 rounded transition hover:scale-110"
-                                                title="Editar"
-                                            >
-                                                <FaEdit size={18} />
-                                            </button>
-                                            <button
-                                                onClick={() => handleDelete(asset.id)}
-                                                className="p-2 text-red-500 hover:bg-red-50 rounded transition hover:scale-110"
-                                                title="Eliminar"
-                                            >
-                                                <FaTrashAlt size={18} />
-                                            </button>
+                                            <button onClick={() => handleSaveEdit(asset.id)} className="p-2 bg-green-100 text-green-700 rounded hover:bg-green-200"><FaSave /></button>
+                                            <button onClick={handleCancelEdit} className="p-2 bg-gray-100 text-gray-600 rounded hover:bg-gray-200"><FaTimes /></button>
                                         </div>
                                     </td>
-                                )}
-                            </>
-                        )}
-                    </tr>
-                ))}
-            </tbody>
-        </table>
-        {assets.length === 0 && <p className="text-center p-4 text-gray-500">No hay bienes registrados.</p>}
+                                </>
+                            ) : (
+                                // MODO VISUALIZACIÓN
+                                <>
+                                    <td className="p-4 font-mono font-bold text-[#1e2538] text-sm">
+                                        {asset.codigo || asset.id_manual || asset.id}
+                                    </td>
+                                    <td className="p-4 font-medium text-gray-800">
+                                        {asset.titulo || asset.nombre || '(Sin nombre)'}
+                                    </td>
+                                    <td className="p-4 text-sm text-gray-600">
+                                        {asset.condicion || asset.ubicacion || '-'}
+                                    </td>
+                                    <td className="p-4">
+                                          <div className="flex items-center gap-2">
+                                          <span className={`px-3 py-1 text-xs rounded-full font-semibold border ${
+                                            asset.estado === 'Operativo' ? 'bg-green-50 text-green-700 border-green-200' : 
+                                            asset.estado === 'En Reparación' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' : 'bg-red-50 text-red-700 border-red-200'
+                                        }`}>
+                                            {asset.estado}
+                                        </span>
+                                          {!asset.aprobado && (
+                                            <span className="px-2 py-0.5 text-xs rounded-full bg-yellow-100 text-yellow-800 border border-yellow-200">Pendiente</span>
+                                          )}
+                                          </div>
+                                    </td>
+                                    <td className="p-4 text-sm text-gray-700">{asset.creatorNombre || asset.createdBy || '-'}</td>
+                                    <td className="p-4 text-sm text-gray-700">
+                                        {asset.documentPath ? (
+                                          <a href={apiUrl(asset.documentPath)} target="_blank" rel="noreferrer" className="text-blue-600 underline">Ver documento</a>
+                                        ) : (
+                                          <button onClick={() => handleUploadClick(asset.id)} className="text-sm px-2 py-1 bg-gray-100 rounded">Adjuntar</button>
+                                        )}
+                                    </td>
+                                    <td className="p-4">
+                                        <div className="flex gap-3 justify-center">
+                                            {userIsAdmin ? (
+                                              <>
+                                                {!asset.aprobado && (
+                                                  <button onClick={() => handleApprove(asset.id)} className="px-2 py-1 bg-green-50 text-green-700 rounded text-sm border" title="Aprobar">
+                                                    Aprobar
+                                                  </button>
+                                                )}
+                                                <button onClick={() => handleEdit(asset)} className="text-blue-600 hover:text-blue-800 transition-colors" title="Editar">
+                                                  <FaEdit size={18} />
+                                                </button>
+                                                <button onClick={() => handleDelete(asset.id)} className="text-red-500 hover:text-red-700 transition-colors" title="Eliminar">
+                                                  <FaTrashAlt size={18} />
+                                                </button>
+                                              </>
+                                            ) : (
+                                              <span className="text-gray-500 text-xs">Solo lectura</span>
+                                            )}
+                                        </div>
+                                    </td>
+                                </>
+                            )}
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+            {assets.length === 0 && (
+                <div className="text-center p-12 text-gray-400">
+                    <p>No hay bienes registrados en el inventario.</p>
+                </div>
+            )}
+        </div>
       </div>
+
+      {/* --- MODAL --- */}
+      <SuccessModal 
+        isOpen={modalState.isOpen}
+        title={modalState.title}
+        message={modalState.message}
+        isError={modalState.isError}
+        onClose={closeModal}
+      />
     </div>
   );
 };
