@@ -9,10 +9,35 @@ import { apiUrl } from '../config/api';
 const Assets = () => {
   const { user } = useAuth();
   
-  // Verificamos si es admin
-  const userIsAdmin = user?.rol === 'admin';
+  // Verificamos roles
+  const userIsAdmin = user?.rol === 'admin' || user?.rol === 'superadmin';
+  const userIsJefe = user?.rol === 'jefe';
 
   const [assets, setAssets] = useState([]);
+  
+  // Para manejar uploads temporales
+  const handleUploadClick = (assetId) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '*/*';
+    input.onchange = async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      try {
+        const form = new FormData();
+        form.append('file', file);
+        await axios.post(apiUrl(`/api/assets/${assetId}/upload`), form, { 
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}`, 'Content-Type': 'multipart/form-data' }
+        });
+        setModalState({ isOpen: true, title: 'Subida Exitosa', message: 'Documento adjuntado correctamente', isError: false });
+        fetchAssets();
+      } catch (err) {
+        console.error('Error subiendo archivo', err);
+        setModalState({ isOpen: true, title: 'Error', message: 'No se pudo subir el documento', isError: true });
+      }
+    };
+    input.click();
+  };
   
   // ESTADO INICIAL FORMULARIO
   const [newAsset, setNewAsset] = useState({ id: '', titulo: '', condicion: '', estado: 'Operativo' });
@@ -36,6 +61,16 @@ const Assets = () => {
     return { headers: { 'Authorization': `Bearer ${token}` } };
   };
 
+  const handleApprove = async (id) => {
+    try {
+      await axios.put(apiUrl(`/api/assets/${id}/approve`), {}, getAuthHeaders());
+      fetchAssets();
+    } catch (error) {
+      console.error('Error aprobando bien:', error);
+      setModalState({ isOpen: true, title: 'Error', message: 'No se pudo aprobar el bien', isError: true });
+    }
+  };
+
   const fetchAssets = async () => {
     try {
       const res = await axios.get(apiUrl('/api/assets'), getAuthHeaders());
@@ -46,11 +81,11 @@ const Assets = () => {
   };
 
   useEffect(() => {
-    // Solo buscamos datos si es admin
-    if (userIsAdmin) {
+    // Buscamos datos si es admin, superadmin o jefe (jefe verá solo sus bienes)
+    if (user && (userIsAdmin || userIsJefe)) {
         fetchAssets();
     }
-  }, [userIsAdmin]); // Dependencia userIsAdmin
+  }, [userIsAdmin, userIsJefe, user]);
 
   // --- LOGICA DE AGREGAR, EDITAR, ELIMINAR (Igual que tenías) ---
   const handleAdd = async (e) => {
@@ -152,14 +187,13 @@ const Assets = () => {
     }
   };
 
-  // --- 🔒 BLOQUEO DE SEGURIDAD VISUAL ---
-  // Si el usuario no existe o NO es admin, mostramos pantalla de acceso denegado.
-  if (!user || !userIsAdmin) {
+  // Si el usuario no existe o no tiene rol permitido, denegar acceso
+  if (!user || (!userIsAdmin && !userIsJefe)) {
     return (
       <div className="flex flex-col items-center justify-center h-96 bg-gray-50 rounded-2xl shadow-inner border border-gray-200 text-gray-500">
         <FaLock className="text-6xl mb-4 text-gray-300" />
         <h2 className="text-2xl font-bold text-gray-600">Acceso Restringido</h2>
-        <p>Solo el administrador puede gestionar el Inventario de Bienes.</p>
+        <p>No tienes permisos para ver esta sección.</p>
       </div>
     );
   }
@@ -193,7 +227,7 @@ const Assets = () => {
 
       {/* --- 2. TARJETA DE REGISTRO (Ahora blanca y limpia) --- */}
       <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
-          <h3 className="text-lg font-bold mb-4 text-gray-700 border-b pb-2">Registrar Nuevo Equipo</h3>
+          <h3 className="text-lg font-bold mb-4 text-gray-700 border-b pb-2">{userIsJefe ? 'Solicitar Nuevo Bien (Pendiente de Aprobación)' : 'Registrar Nuevo Equipo'}</h3>
           <form onSubmit={handleAdd} className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <input 
                 required 
@@ -220,7 +254,7 @@ const Assets = () => {
                 className="p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1e2538] focus:border-[#1e2538] outline-none" 
               />
               <button type="submit" className="bg-green-600 text-white rounded-lg hover:bg-green-700 font-bold transition-colors shadow-sm">
-                Agregar Equipo
+                {userIsJefe ? 'Solicitar Bien' : 'Agregar Equipo'}
               </button>
           </form>
       </div>
@@ -230,13 +264,15 @@ const Assets = () => {
         <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
                 <thead>
-                    <tr className="bg-gray-50 text-gray-700 text-sm uppercase tracking-wider border-b">
-                        <th className="p-4 font-semibold">ID / Código</th>
-                        <th className="p-4 font-semibold">Título</th>
-                        <th className="p-4 font-semibold">Condición</th>
-                        <th className="p-4 font-semibold">Estado</th>
-                        <th className="p-4 font-semibold text-center">Acciones</th>
-                    </tr>
+                  <tr className="bg-gray-50 text-gray-700 text-sm uppercase tracking-wider border-b">
+                    <th className="p-4 font-semibold">ID / Código</th>
+                    <th className="p-4 font-semibold">Título</th>
+                    <th className="p-4 font-semibold">Condición</th>
+                    <th className="p-4 font-semibold">Estado</th>
+                    <th className="p-4 font-semibold">Registrado por</th>
+                    <th className="p-4 font-semibold">Documento</th>
+                    <th className="p-4 font-semibold text-center">Acciones</th>
+                  </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                     {assets.map(asset => (
@@ -254,6 +290,8 @@ const Assets = () => {
                                             <option value="Fuera de Servicio">Fuera de Servicio</option>
                                         </select>
                                     </td>
+                                    <td className="p-3">&nbsp;</td>
+                                    <td className="p-3">&nbsp;</td>
                                     <td className="p-3">
                                         <div className="flex gap-2 justify-center">
                                             <button onClick={() => handleSaveEdit(asset.id)} className="p-2 bg-green-100 text-green-700 rounded hover:bg-green-200"><FaSave /></button>
@@ -274,21 +312,45 @@ const Assets = () => {
                                         {asset.condicion || asset.ubicacion || '-'}
                                     </td>
                                     <td className="p-4">
-                                        <span className={`px-3 py-1 text-xs rounded-full font-semibold border ${
+                                          <div className="flex items-center gap-2">
+                                          <span className={`px-3 py-1 text-xs rounded-full font-semibold border ${
                                             asset.estado === 'Operativo' ? 'bg-green-50 text-green-700 border-green-200' : 
                                             asset.estado === 'En Reparación' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' : 'bg-red-50 text-red-700 border-red-200'
                                         }`}>
                                             {asset.estado}
                                         </span>
+                                          {!asset.aprobado && (
+                                            <span className="px-2 py-0.5 text-xs rounded-full bg-yellow-100 text-yellow-800 border border-yellow-200">Pendiente</span>
+                                          )}
+                                          </div>
+                                    </td>
+                                    <td className="p-4 text-sm text-gray-700">{asset.creatorNombre || asset.createdBy || '-'}</td>
+                                    <td className="p-4 text-sm text-gray-700">
+                                        {asset.documentPath ? (
+                                          <a href={apiUrl(asset.documentPath)} target="_blank" rel="noreferrer" className="text-blue-600 underline">Ver documento</a>
+                                        ) : (
+                                          <button onClick={() => handleUploadClick(asset.id)} className="text-sm px-2 py-1 bg-gray-100 rounded">Adjuntar</button>
+                                        )}
                                     </td>
                                     <td className="p-4">
                                         <div className="flex gap-3 justify-center">
-                                            <button onClick={() => handleEdit(asset)} className="text-blue-600 hover:text-blue-800 transition-colors" title="Editar">
-                                                <FaEdit size={18} />
-                                            </button>
-                                            <button onClick={() => handleDelete(asset.id)} className="text-red-500 hover:text-red-700 transition-colors" title="Eliminar">
-                                                <FaTrashAlt size={18} />
-                                            </button>
+                                            {userIsAdmin ? (
+                                              <>
+                                                {!asset.aprobado && (
+                                                  <button onClick={() => handleApprove(asset.id)} className="px-2 py-1 bg-green-50 text-green-700 rounded text-sm border" title="Aprobar">
+                                                    Aprobar
+                                                  </button>
+                                                )}
+                                                <button onClick={() => handleEdit(asset)} className="text-blue-600 hover:text-blue-800 transition-colors" title="Editar">
+                                                  <FaEdit size={18} />
+                                                </button>
+                                                <button onClick={() => handleDelete(asset.id)} className="text-red-500 hover:text-red-700 transition-colors" title="Eliminar">
+                                                  <FaTrashAlt size={18} />
+                                                </button>
+                                              </>
+                                            ) : (
+                                              <span className="text-gray-500 text-xs">Solo lectura</span>
+                                            )}
                                         </div>
                                     </td>
                                 </>

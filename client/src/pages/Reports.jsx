@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { useAuth } from '../context/AuthContext';
 // IMPORTANTE: Ajusta la ruta si tu carpeta components está en otro nivel
 import SuccessModal from "../components/SuccessModal"; 
 import { apiUrl } from '../config/api';
@@ -15,6 +16,7 @@ const Reports = () => {
   
   const [loading, setLoading] = useState(false);
 
+  const { user } = useAuth();
   const [departments, setDepartments] = useState([]);
   const [selectedEncargado, setSelectedEncargado] = useState('');
 
@@ -43,15 +45,27 @@ const Reports = () => {
           headers: token ? { Authorization: `Bearer ${token}` } : {}
         });
         if (res.ok) {
-          const data = await res.json();
-          setDepartments(data || []);
+          const data = await res.json() || [];
+          // Si el usuario es jefe, mostrar solo su departamento
+          if (user?.rol === 'jefe') {
+            const filtered = data.filter(d => d.encargado === user.username || d.name === user.departamento);
+            // Si no existe en la lista, crear un placeholder a partir del user.departamento
+            const final = filtered.length ? filtered : (user.departamento ? [{ name: user.departamento, encargado: user.username }] : []);
+            setDepartments(final);
+            if (final[0]) {
+              setFormData(prev => ({ ...prev, departamento: final[0].name }));
+              setSelectedEncargado(final[0].encargado || '');
+            }
+          } else {
+            setDepartments(data);
+          }
         }
       } catch (err) {
         console.error('No se pudieron cargar departamentos:', err);
       }
     };
     fetchDepartments();
-  }, []);
+  }, [user]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

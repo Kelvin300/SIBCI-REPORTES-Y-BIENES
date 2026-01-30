@@ -5,7 +5,7 @@ import { apiUrl } from '../config/api';
 
 const ListaReportes = () => {
   const { user } = useAuth();
-  const userIsAdmin = user?.rol === 'admin';
+  const userIsAdmin = user?.rol === 'admin' || user?.rol === 'superadmin';
   
   const [activeTab, setActiveTab] = useState('fallas'); 
   const [searchTerm, setSearchTerm] = useState('');

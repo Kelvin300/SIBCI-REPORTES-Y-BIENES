@@ -63,28 +63,8 @@ export const AuthProvider = ({ children }) => {
   };
 
   const register = async (username, password, nombre, email, recaptchaToken) => {
-    try {
-      const response = await axios.post(apiUrl('/api/auth/register'), {
-        username,
-        password,
-        nombre,
-        email,
-        recaptchaToken
-      });
-      
-      const { token: newToken, user: userData } = response.data;
-      setToken(newToken);
-      setUser(userData);
-      localStorage.setItem('token', newToken);
-      axios.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
-      
-      return { success: true };
-    } catch (error) {
-      return {
-        success: false,
-        error: error.response?.data?.error || 'Error al registrar usuario'
-      };
-    }
+    // Registro público eliminado — creación de usuarios por admin/superadmin
+    return { success: false, error: 'Registro deshabilitado. Contacte al administrador.' };
   };
 
   const logout = () => {
@@ -95,13 +75,14 @@ export const AuthProvider = ({ children }) => {
   };
 
   const isAdmin = () => {
-    return user?.rol === 'admin';
+    return user?.rol === 'admin' || user?.rol === 'superadmin';
   };
 
   const value = {
     user,
     loading,
     login,
+    // register kept for compatibility but disabled; UI should be removed
     register,
     logout,
     isAdmin,

@@ -1,0 +1,115 @@
+Minijuego: Sillas
+
+Descripción general:  
+“Sillas” es un minijuego competitivo basado en la clásica dinámica de ocupar una silla cuando la música se detiene.
+Participan varios jugadores y en cada ronda habrá siempre una silla menos que la cantidad de jugadores activos.
+
+Reglas y Mecánicas
+Inicio de la ronda:
+
+Todos los jugadores permanecen de pie mientras suena la música.
+
+Las sillas no están visibles durante este tiempo.
+
+Fin de la música:
+
+Cuando la música se detiene, aparece en el escenario un conjunto de sillas.
+
+La cantidad de sillas será siempre número de jugadores actuales - 1.
+
+Las sillas aparecen en posiciones aleatorias dentro del escenario.
+
+Selección de sillas:
+
+Cada jugador puede seleccionar una silla disponible.
+
+Si un jugador ya seleccionó una silla, ningún otro jugador puede elegir esa misma.
+
+Los jugadores tienen 5 segundos para elegir y ocupar una silla.
+
+Los jugadores sentados pueden levantarse y cambiar de silla si lo desean, siempre dentro del límite de tiempo.
+
+Eliminación:
+
+Al finalizar el tiempo, todos los jugadores que no estén sentados en una silla quedan eliminados de la partida.
+
+Progreso del juego:
+
+Se inicia una nueva ronda con los jugadores restantes.
+
+En cada ronda se reduce nuevamente la cantidad de sillas (siempre una menos que los jugadores).
+
+El proceso continúa hasta que solo quede un jugador, quien será el ganador.
+
+Condición de victoria
+El último jugador que permanezca en el juego después de todas las rondas es declarado ganador.
+
+DIFICULTADES
+
+1. Nivel Fácil
+Enfoque: accesible, visualmente claro, sin presión.
+
+Ajustes recomendados:
+
+Tiempo para elegir silla: 7 segundos.
+
+Sillas generadas cerca de los jugadores (radio pequeño).
+
+Velocidad de movimiento: 100%.
+
+Obstáculos: ninguno.
+
+Sillas con resaltado visual (brillo, borde animado).
+
+Colisiones simples: los jugadores no se traban entre sí.
+
+Música se detiene y las sillas aparecen con 0.5 s de anticipación visual (pequeño destello).
+
+Sensación:  
+Todo es claro, visible y fácil de alcanzar.
+
+2. Nivel Medio
+Enfoque: ritmo competitivo, decisiones rápidas.
+
+Ajustes recomendados:
+
+Tiempo para elegir silla: 5 segundos.
+
+Sillas generadas en un radio medio, más dispersas.
+
+Velocidad de movimiento: 100%.
+
+Obstáculos: 1 o 2 objetos estáticos (cajas, barriles, columnas 2D).
+
+Sillas sin resaltado especial.
+
+Colisiones entre jugadores activadas (se empujan ligeramente).
+
+Sillas aparecen inmediatamente al detenerse la música.
+
+Sensación:  
+Tensión moderada, se siente como un juego competitivo clásico.
+
+3. Nivel Difícil
+Enfoque: presión máxima, movilidad limitada, caos controlado.
+
+Ajustes recomendados:
+
+Tiempo para elegir silla: 3 segundos.
+
+Sillas generadas en un radio amplio, algunas lejos del jugador.
+
+Velocidad de movimiento: 90% o incluso 85%.
+
+Obstáculos: 3 a 5 objetos, algunos estrechando pasillos.
+
+Sillas pueden aparecer parcialmente ocultas detrás de obstáculos (sin ser injusto).
+
+Colisiones fuertes entre jugadores (bloquean más).
+
+No se permite levantarse una vez sentado (opcional).
+
+Animación de aparición de sillas instantánea, sin aviso.
+
+Sensación:  
+Caótico, rápido, obliga a leer el mapa y reaccionar al instante.

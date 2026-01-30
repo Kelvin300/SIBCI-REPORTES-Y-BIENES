@@ -4,6 +4,7 @@ import Layout from './components/Layout';
 import Reports from './pages/Reports';
 import Assets from './pages/Assets';
 import ListaReportes from './pages/ListaReportes';
+import Users from './pages/Users';
 import Login from './pages/Login';
 import { useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext'; 
@@ -136,6 +137,7 @@ function App() {
                     <Route path="/reportes" element={<Reports />} />
                     <Route path="/bienes" element={<Assets />} />
                     <Route path="/gestion" element={<ListaReportes />} />
+                    <Route path="/users" element={<Users />} />
                   </Routes>
                 </Layout>
               </ProtectedRoute>

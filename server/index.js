@@ -1,11 +1,14 @@
 const express = require('express');
 const cors = require('cors');
-const { Sequelize, DataTypes } = require('sequelize');
+const { Sequelize, DataTypes, Op } = require('sequelize');
 const nodemailer = require('nodemailer');
 const PDFDocument = require('pdfkit');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const axios = require('axios');
+const path = require('path');
+const fs = require('fs');
+const multer = require('multer');
 require('dotenv').config();
 
 const app = express();
@@ -14,6 +17,24 @@ const PORT = process.env.PORT || 3001;
 // Middlewares
 app.use(cors());
 app.use(express.json());
+
+// Servir archivos subidos
+const uploadsDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+app.use('/uploads', express.static(uploadsDir));
+
+// Multer para manejar uploads
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, uploadsDir);
+  },
+  filename: function (req, file, cb) {
+    const unique = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    const safe = file.originalname.replace(/[^a-zA-Z0-9.\-_]/g, '_');
+    cb(null, `${unique}-${safe}`);
+  }
+});
+const upload = multer({ storage });
 
 // --- CONFIGURACIÓN BASE DE DATOS (SQLite) ---
 const sequelize = new Sequelize({
@@ -48,6 +69,10 @@ const Asset = sequelize.define('Asset', {
     type: DataTypes.STRING,
     allowNull: true
   },
+  departamento: { type: DataTypes.STRING, allowNull: true },
+  aprobado: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
+  createdBy: { type: DataTypes.STRING, allowNull: true },
+  documentPath: { type: DataTypes.STRING, allowNull: true },
   estado: {
     type: DataTypes.STRING,
     defaultValue: 'Operativo'
@@ -85,7 +110,8 @@ const User = sequelize.define('User', {
   password: { type: DataTypes.STRING, allowNull: false },
   nombre: { type: DataTypes.STRING, allowNull: false },
   email: { type: DataTypes.STRING, allowNull: false },
-  rol: { type: DataTypes.STRING, defaultValue: 'usuario', allowNull: false } 
+  rol: { type: DataTypes.STRING, defaultValue: 'jefe', allowNull: false },
+  departamento: { type: DataTypes.STRING, allowNull: true }
 });
 
 // --- SINCRONIZACIÓN E INICIO ---
@@ -112,6 +138,22 @@ sequelize.sync({ alter: true })
       console.log('  Usuario: admin');
       console.log('  Contraseña: admin123');
     }
+    // Crear superadmin por defecto si no existe
+    const superExists = await User.findOne({ where: { username: 'superadmin' } });
+    if (!superExists) {
+      const hashedPassword = await bcrypt.hash('superadmin123', 10);
+      await User.create({
+        username: 'superadmin',
+        password: hashedPassword,
+        nombre: 'Super Administrador',
+        email: 'superadmin@sibci.gob.ve',
+        rol: 'superadmin'
+      });
+      console.log('✓ Usuario superadmin creado por defecto: superadmin / superadmin123');
+    }
+
+    // Normalizar roles antiguos 'usuario' -> 'jefe' (el rol público queda eliminado)
+    await User.update({ rol: 'jefe' }, { where: { rol: 'usuario' } });
   })
   .catch((error) => {
     console.error('✗ Error al sincronizar base de datos:', error);
@@ -182,8 +224,8 @@ const authenticateToken = (req, res, next) => {
 };
 
 const requireAdmin = (req, res, next) => {
-  if (req.user.rol !== 'admin') {
-    return res.status(403).json({ error: 'Acceso denegado. Se requiere rol de administrador' });
+  if (req.user.rol !== 'admin' && req.user.rol !== 'superadmin') {
+    return res.status(403).json({ error: 'Acceso denegado. Se requiere rol de administrador o superadministrador' });
   }
   next();
 };
@@ -245,32 +287,26 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
-app.post('/api/auth/register', async (req, res) => {
+// Registro público eliminado. La creación de usuarios debe ser realizada por admin/superadmin.
+// Endpoint para que admin o superadmin creen usuarios (asignar rol y departamento)
+app.post('/api/users', authenticateToken, requireAdmin, async (req, res) => {
   try {
-    const { username, password, nombre, email, recaptchaToken } = req.body;
-    if (!username || !password || !nombre || !email) return res.status(400).json({ error: 'Datos incompletos' });
+    const { username, password, nombre, email, rol, departamento } = req.body;
+    if (!username || !password || !nombre || !email || !rol) return res.status(400).json({ error: 'Datos incompletos' });
 
-    // Verificar reCAPTCHA
-    const recaptchaValid = await verifyRecaptcha(recaptchaToken);
-    if (!recaptchaValid) {
-      return res.status(400).json({ error: 'Verificación reCAPTCHA fallida. Por favor, intenta nuevamente.' });
-    }
+    const allowedRoles = ['admin', 'superadmin', 'jefe'];
+    if (!allowedRoles.includes(rol)) return res.status(400).json({ error: 'Rol inválido' });
 
     const userExists = await User.findOne({ where: { username } });
     if (userExists) return res.status(400).json({ error: 'El usuario ya existe' });
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const newUser = await User.create({ username, password: hashedPassword, nombre, email, rol: 'usuario' });
+    const newUser = await User.create({ username, password: hashedPassword, nombre, email, rol, departamento });
 
-    const token = jwt.sign(
-      { id: newUser.id, username: newUser.username, rol: newUser.rol, nombre: newUser.nombre },
-      process.env.JWT_SECRET || 'sibci-secret-key-change-in-production',
-      { expiresIn: '24h' }
-    );
-
-    res.status(201).json({ token, user: { id: newUser.id, username: newUser.username, nombre: newUser.nombre, rol: newUser.rol } });
+    res.status(201).json({ user: { id: newUser.id, username: newUser.username, nombre: newUser.nombre, rol: newUser.rol, departamento: newUser.departamento } });
   } catch (error) {
-    res.status(500).json({ error: 'Error al registrar usuario' });
+    console.error('Error creando usuario:', error);
+    res.status(500).json({ error: 'Error al crear usuario' });
   }
 });
 
@@ -278,7 +314,7 @@ app.get('/api/auth/verify', authenticateToken, async (req, res) => {
   try {
     const user = await User.findByPk(req.user.id);
     if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
-    res.json({ user: { id: user.id, username: user.username, nombre: user.nombre, email: user.email, rol: user.rol } });
+    res.json({ user: { id: user.id, username: user.username, nombre: user.nombre, email: user.email, rol: user.rol, departamento: user.departamento } });
   } catch (error) {
     res.status(500).json({ error: 'Error al verificar token' });
   }
@@ -287,29 +323,88 @@ app.get('/api/auth/verify', authenticateToken, async (req, res) => {
 // === BIENES (ASSETS) - LÓGICA MEJORADA ===
 app.get('/api/assets', authenticateToken, async (req, res) => {
   try {
-    const assets = await Asset.findAll({ order: [['createdAt', 'DESC']] });
-    res.json(assets);
+    // Si es jefe, devolver solo bienes aprobados de su(s) departamento(s)
+    let assets = [];
+    if (req.user.rol === 'jefe') {
+      const depts = await Department.findAll({ where: { encargado: req.user.username } });
+      const deptNames = depts.map(d => d.name);
+      // Jefe ve bienes aprobados de su departamento y sus propias solicitudes (pendientes)
+      assets = await Asset.findAll({
+        where: {
+          [Op.or]: [
+            { aprobado: true, departamento: deptNames.length ? deptNames : null },
+            { createdBy: req.user.username }
+          ]
+        },
+        order: [['createdAt', 'DESC']]
+      });
+    } else {
+      // Admin y superadmin ven todo
+      assets = await Asset.findAll({ order: [['createdAt', 'DESC']] });
+    }
+
+    // Enriquecer con nombre del creador (si existe)
+    const creators = Array.from(new Set(assets.map(a => a.createdBy).filter(Boolean)));
+    let users = [];
+    if (creators.length > 0) {
+      users = await User.findAll({ where: { username: creators } });
+    }
+    const userMap = {};
+    users.forEach(u => { userMap[u.username] = u.nombre; });
+
+    const enriched = assets.map(a => {
+      const plain = a.get ? a.get({ plain: true }) : a;
+      return { ...plain, creatorNombre: userMap[plain.createdBy] || plain.createdBy || null };
+    });
+
+    res.json(enriched);
   } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
-app.post('/api/assets', authenticateToken, requireAdmin, async (req, res) => {
+// Crear bien: admin/superadmin crean directamente (aprobado=true), jefe crea solicitud (aprobado=false)
+app.post('/api/assets', authenticateToken, async (req, res) => {
   try {
-    // Recibimos cualquier variación de nombre que envíe el frontend
-    const { codigo, id_manual, nombre, titulo, condicion, ubicacion, estado } = req.body;
-    
-    // Guardamos duplicado para asegurar compatibilidad
-    const newAsset = await Asset.create({
-      id: codigo || id_manual, // ID prioritario
-      titulo: titulo || nombre, // Titulo o nombre
-      nombre: nombre || titulo, // Respaldo en columna nombre
-      condicion: condicion,
-      ubicacion: ubicacion || condicion, // Respaldo en ubicacion
-      estado: estado
-    });
-    res.json(newAsset);
-  } catch (error) { 
-    console.error("Error guardando bien:", error);
-    res.status(500).json({ error: error.message }); 
+    const { codigo, id_manual, nombre, titulo, condicion, ubicacion, estado, departamento } = req.body;
+
+    if (req.user.rol === 'admin' || req.user.rol === 'superadmin') {
+      const newAsset = await Asset.create({
+        id: codigo || id_manual,
+        titulo: titulo || nombre,
+        nombre: nombre || titulo,
+        condicion: condicion,
+        ubicacion: ubicacion || condicion,
+        estado: estado,
+        departamento: departamento || null,
+        aprobado: true,
+        createdBy: req.user.username
+      });
+      return res.json(newAsset);
+    }
+
+    if (req.user.rol === 'jefe') {
+      // Obtener departamento(s) que encabeza el usuario
+      const depts = await Department.findAll({ where: { encargado: req.user.username } });
+      if (!depts || depts.length === 0) return res.status(400).json({ error: 'No está asignado como encargado de ningún departamento' });
+      const deptName = depts[0].name;
+
+      const newAsset = await Asset.create({
+        id: codigo || id_manual,
+        titulo: titulo || nombre,
+        nombre: nombre || titulo,
+        condicion: condicion,
+        ubicacion: ubicacion || condicion,
+        estado: estado,
+        departamento: deptName,
+        aprobado: false,
+        createdBy: req.user.username
+      });
+      return res.json({ message: 'Solicitud creada. Debe ser aprobada por admin o superadmin', asset: newAsset });
+    }
+
+    return res.status(403).json({ error: 'Acceso denegado' });
+  } catch (error) {
+    console.error('Error guardando bien:', error);
+    res.status(500).json({ error: error.message });
   }
 });
 
@@ -320,6 +415,19 @@ app.delete('/api/assets/:id', authenticateToken, requireAdmin, async (req, res) 
   } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
+app.put('/api/assets/:id/approve', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const id = req.params.id;
+    const asset = await Asset.findByPk(id);
+    if (!asset) return res.status(404).json({ error: 'Bien no encontrado' });
+    asset.aprobado = true;
+    await asset.save();
+    res.json({ message: 'Bien aprobado', asset });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.put('/api/assets/:id', authenticateToken, requireAdmin, async (req, res) => {
   try {
     await Asset.update(req.body, { where: { id: req.params.id } });
@@ -327,9 +435,42 @@ app.put('/api/assets/:id', authenticateToken, requireAdmin, async (req, res) => 
   } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
+// Subir documento asociado a un bien (puede subirlo el creador o un admin)
+app.post('/api/assets/:id/upload', authenticateToken, upload.single('file'), async (req, res) => {
+  try {
+    const id = req.params.id;
+    const asset = await Asset.findByPk(id);
+    if (!asset) return res.status(404).json({ error: 'Bien no encontrado' });
+
+    // Permisos: admin/superadmin o creador
+    if (req.user.rol !== 'admin' && req.user.rol !== 'superadmin' && req.user.username !== asset.createdBy) {
+      return res.status(403).json({ error: 'No autorizado para subir documento' });
+    }
+
+    if (!req.file) return res.status(400).json({ error: 'Archivo no recibido' });
+
+    // Guardar ruta relativa para servir desde /uploads
+    asset.documentPath = `/uploads/${req.file.filename}`;
+    await asset.save();
+
+    res.json({ message: 'Documento adjuntado', asset });
+  } catch (error) {
+    console.error('Error subiendo documento:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // === REPORTES (REPORTS) - CON ENVÍO DE CORREO ===
 app.get('/api/reports', authenticateToken, async (req, res) => {
   try {
+    // Si es jefe, devolver solo reportes del/los departamento(s) que encabeza
+    if (req.user.rol === 'jefe') {
+      const depts = await Department.findAll({ where: { encargado: req.user.username } });
+      const deptNames = depts.map(d => d.name);
+      const reports = await Report.findAll({ where: { departamento: deptNames.length ? deptNames : req.user.departamento }, order: [['createdAt', 'DESC']] });
+      return res.json(reports);
+    }
+
     const reports = await Report.findAll({ order: [['createdAt', 'DESC']] });
     res.json(reports);
   } catch (error) { res.status(500).json({ error: error.message }); }
@@ -531,6 +672,33 @@ app.get('/api/test-email', async (req, res) => {
     }
 
     res.json({ envInfo, verifyResult, sendResult });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Listar usuarios (solo admin/superadmin)
+app.get('/api/users', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const users = await User.findAll({ order: [['username', 'ASC']] });
+    const sanitized = users.map(u => ({ id: u.id, username: u.username, nombre: u.nombre, email: u.email, rol: u.rol, departamento: u.departamento }));
+    res.json(sanitized);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Eliminar usuario (solo superadmin)
+app.delete('/api/users/:id', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.rol !== 'superadmin') return res.status(403).json({ error: 'Acceso denegado. Solo superadministrador puede eliminar usuarios.' });
+    const id = req.params.id;
+    const userToDelete = await User.findByPk(id);
+    if (!userToDelete) return res.status(404).json({ error: 'Usuario no encontrado' });
+    // Prevención simple: no permitir eliminar al propio superadmin logged si quiere evitar lockout (opcional)
+    if (userToDelete.username === req.user.username) return res.status(400).json({ error: 'No puedes eliminar tu propio usuario' });
+    await User.destroy({ where: { id } });
+    res.json({ message: 'Usuario eliminado correctamente' });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

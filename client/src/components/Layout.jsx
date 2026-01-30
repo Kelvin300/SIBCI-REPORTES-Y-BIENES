@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { FaLaptopMedical, FaBoxes, FaHome, FaBars, FaTimes, FaClipboardList, FaUser, FaSignOutAlt, FaShieldAlt } from 'react-icons/fa'; 
+import { FaLaptopMedical, FaBoxes, FaHome, FaBars, FaTimes, FaClipboardList, FaUser, FaSignOutAlt, FaShieldAlt, FaUsers } from 'react-icons/fa'; 
 import { useAuth } from '../context/AuthContext';
 // 1. IMPORTAMOS LA IMAGEN
 import logoSibci from '../assets/logo-sibci.png'; 
@@ -20,8 +20,13 @@ const Layout = ({ children }) => {
     { path: '/', label: 'Inicio', icon: <FaHome/> },
     { path: '/reportes', label: 'Reporte de Fallas', icon: <FaLaptopMedical /> },
     { path: '/bienes', label: 'Control de Bienes', icon: <FaBoxes /> },
-      { path: '/gestion', label: 'Gestión de Reportes', icon: <FaClipboardList /> }, 
+    { path: '/gestion', label: 'Gestión de Reportes', icon: <FaClipboardList /> }
   ];
+
+  // Mostrar Gestión de Usuarios solo para admin/superadmin
+  if (isAdmin()) {
+    menuItems.push({ path: '/users', label: 'Usuarios', icon: <FaUsers /> });
+  }
 
   return (
     // 'relative' es necesario para posicionar elementos absolutos/fijos dentro si fuera necesario, 
@@ -108,7 +113,7 @@ const Layout = ({ children }) => {
               <p className="text-white font-semibold text-sm">{user?.nombre || user?.username}</p>
               <p className="text-blue-200 text-xs flex items-center gap-1">
                 {isAdmin() && <FaShieldAlt className="text-yellow-400" />}
-                {user?.rol === 'admin' ? 'Administrador' : 'Usuario'}
+                {user?.rol === 'superadmin' ? 'Superadministrador' : user?.rol === 'admin' ? 'Administrador' : user?.rol === 'jefe' ? 'Jefe de Departamento' : 'Usuario'}
               </p>
             </div>
           </div>
