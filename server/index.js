@@ -49,8 +49,8 @@ const sequelize = new Sequelize({
 // 1. Modelo de Bienes (VERSIÓN ROBUSTA - Compatible con tu Frontend)
 const Asset = sequelize.define('Asset', {
   id: {
-    type: DataTypes.STRING, 
-    primaryKey: true,       
+    type: DataTypes.STRING,
+    primaryKey: true,
     allowNull: false,
     unique: true
   },
@@ -84,7 +84,7 @@ const Report = sequelize.define('Report', {
   solicitante: { type: DataTypes.STRING, allowNull: false },
   departamento: { type: DataTypes.STRING, allowNull: false },
   encargado: { type: DataTypes.STRING, allowNull: true },
-  tipo_falla: { type: DataTypes.STRING }, 
+  tipo_falla: { type: DataTypes.STRING },
   descripcion: { type: DataTypes.TEXT },
   estado: { type: DataTypes.STRING, defaultValue: 'Pendiente' }
 });
@@ -94,15 +94,15 @@ const Department = sequelize.define('Department', {
   name: { type: DataTypes.STRING, allowNull: false, unique: true },
   encargado: { type: DataTypes.STRING, allowNull: false }
 });
-  
-  // Crear la tabla Department sólo si no existe (sin usar `alter` para evitar alteraciones sobre otras tablas)
-  Department.sync()
-    .then(() => {
-      console.log('✓ Tabla Department creada o ya existente');
-    })
-    .catch((err) => {
-      console.error('✗ Error creando Department:', err);
-    });
+
+// Crear la tabla Department sólo si no existe (sin usar `alter` para evitar alteraciones sobre otras tablas)
+Department.sync()
+  .then(() => {
+    console.log('✓ Tabla Department creada o ya existente');
+  })
+  .catch((err) => {
+    console.error('✗ Error creando Department:', err);
+  });
 
 // 3. Modelo de Usuarios
 const User = sequelize.define('User', {
@@ -122,7 +122,7 @@ sequelize.sync({ alter: true })
   .then(async () => {
     console.log('✓ Base de datos SQLite sincronizada y actualizada correctamente.');
     console.log('✓ Tablas listas: Asset, Report, User');
-    
+
     // Crear admin por defecto si no existe
     const adminExists = await User.findOne({ where: { username: 'admin' } });
     if (!adminExists) {
@@ -235,7 +235,7 @@ const requireAdmin = (req, res, next) => {
 // Función para verificar reCAPTCHA
 const verifyRecaptcha = async (token) => {
   if (!token) return false;
-  
+
   // En modo desarrollo, si no hay clave secreta configurada, permitir pasar
   if (!process.env.RECAPTCHA_SECRET_KEY) {
     console.warn('⚠️  RECAPTCHA_SECRET_KEY no configurado. reCAPTCHA deshabilitado en desarrollo.');
@@ -489,17 +489,17 @@ app.post('/api/reports', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'El departamento seleccionado no tiene un encargado asignado. Contacte al administrador.' });
     }
     const newReport = await Report.create({ solicitante, departamento, encargado: dept.encargado, tipo_falla, descripcion });
-    
+
     let emailSent = false;
     let emailError = null;
 
     // Intentar enviar correo si está configurado
     if (process.env.EMAIL_USER && process.env.EMAIL_PASS && process.env.ADMIN_EMAIL) {
-        const mailOptions = {
-          from: process.env.EMAIL_USER,
-          to: process.env.ADMIN_EMAIL,
-          subject: `🚨 Nuevo Reporte SIBCI: ${tipo_falla} - ${departamento}`,
-          html: `
+      const mailOptions = {
+        from: process.env.EMAIL_USER,
+        to: process.env.ADMIN_EMAIL,
+        subject: `🚨 Nuevo Reporte SIBCI: ${tipo_falla} - ${departamento}`,
+        html: `
             <h3>Nuevo Reporte de Soporte Técnico</h3>
             <p><strong>Solicitante:</strong> ${solicitante}</p>
             <p><strong>Departamento:</strong> ${departamento}</p>
@@ -508,30 +508,30 @@ app.post('/api/reports', authenticateToken, async (req, res) => {
             <hr>
             <p><small>Fecha: ${new Date().toLocaleString('es-VE')}</small></p>
           `
-        };
-        
-        try {
-            await transporter.sendMail(mailOptions);
-            console.log('✓ Correo de notificación enviado.');
-            emailSent = true;
-        } catch (err) {
-            console.error('✗ Error enviando correo:', err.message);
-            emailError = err.message;
-        }
+      };
+
+      try {
+        await transporter.sendMail(mailOptions);
+        console.log('✓ Correo de notificación enviado.');
+        emailSent = true;
+      } catch (err) {
+        console.error('✗ Error enviando correo:', err.message);
+        emailError = err.message;
+      }
     } else {
-        console.log('⚠️ Correo no enviado: Falta configuración en .env');
+      console.log('⚠️ Correo no enviado: Falta configuración en .env');
     }
 
-    res.json({ 
-        message: emailSent ? 'Reporte creado y notificado' : 'Reporte creado (sin notificación)', 
-        report: newReport, 
-        emailSent,
-        emailError
+    res.json({
+      message: emailSent ? 'Reporte creado y notificado' : 'Reporte creado (sin notificación)',
+      report: newReport,
+      emailSent,
+      emailError
     });
 
-  } catch (error) { 
-      console.error('✗ Error creando reporte en BD:', error);
-      res.status(500).json({ error: error.message }); 
+  } catch (error) {
+    console.error('✗ Error creando reporte en BD:', error);
+    res.status(500).json({ error: error.message });
   }
 });
 
@@ -543,10 +543,10 @@ app.delete('/api/reports/:id', authenticateToken, requireAdmin, async (req, res)
 });
 
 app.put('/api/reports/:id', authenticateToken, requireAdmin, async (req, res) => {
-    try {
-      await Report.update(req.body, { where: { id: req.params.id } });
-      res.json({ message: 'Estado actualizado' });
-    } catch (error) { res.status(500).json({ error: error.message }); }
+  try {
+    await Report.update(req.body, { where: { id: req.params.id } });
+    res.json({ message: 'Estado actualizado' });
+  } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
 // --- DEPARTMENTS ---
@@ -592,26 +592,105 @@ app.get('/api/reports/:id/pdf', authenticateToken, async (req, res) => {
     if (!report) return res.status(404).json({ error: 'Reporte no encontrado' });
 
     // Generar PDF en memoria
-    const doc = new PDFDocument({ margin: 50 });
+    const doc = new PDFDocument({ margin: 50, size: 'LETTER' });
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="reporte-${id}.pdf"`);
 
-    doc.fontSize(20).text('Reporte SIBCI', { align: 'center' });
-    doc.moveDown();
+    // --- 1. MARCA DE AGUA (FONDO) ---
+    const logoPath = path.join(__dirname, 'assets', 'logo.png');
+    if (fs.existsSync(logoPath)) {
+      doc.save();
+      doc.opacity(0.1);
+      const pageWidth = doc.page.width;
+      const pageHeight = doc.page.height;
+      const imageSize = 400;
+      doc.image(logoPath, (pageWidth - imageSize) / 2, (pageHeight - imageSize) / 2, {
+        width: imageSize,
+        align: 'center',
+        valign: 'center'
+      });
+      doc.restore();
+    }
 
-    doc.fontSize(12).text(`ID: ${report.id}`);
-    doc.text(`Solicitante: ${report.solicitante}`);
-    doc.text(`Departamento: ${report.departamento}`);
-    doc.text(`Encargado: ${report.encargado || '-'}`);
-    doc.text(`Tipo de falla: ${report.tipo_falla || '-'}`);
-    doc.text(`Estado: ${report.estado}`);
-    doc.moveDown();
-    doc.text('Descripción:', { underline: true });
-    doc.moveDown(0.5);
-    doc.text(report.descripcion || '-', { align: 'justify' });
+    // --- 2. ENCABEZADO FORMAL ---
+    // Logo pequeño arriba a la izquierda
+    if (fs.existsSync(logoPath)) {
+      doc.image(logoPath, 50, 40, { width: 60 });
+    }
 
-    doc.moveDown();
-    doc.text(`Fecha de registro: ${new Date(report.createdAt).toLocaleString('es-VE')}`);
+    // Texto de la institución
+    const headerX = 120;
+    doc.font('Helvetica-Bold').fontSize(14).fillColor('#172554').text('SIBCI GUÁRICO', headerX, 45);
+    doc.font('Helvetica').fontSize(10).fillColor('#000000').text('Sistema de Bienes y Control Interno', headerX, 65);
+    doc.text('Gobernación del Estado Guárico', headerX, 80);
+
+    // Línea separadora
+    doc.moveTo(50, 110).lineTo(562, 110).lineWidth(2).strokeColor('#172554').stroke();
+
+    // --- 3. TÍTULO DEL REPORTE ---
+    doc.moveDown(5); // Espacio después del header
+    doc.font('Helvetica-Bold').fontSize(22).fillColor('#172554').text('REPORTE DE SOPORTE TÉCNICO', { align: 'center' });
+    doc.fontSize(12).fillColor('#555555').text(`ID: #${report.id.toString().padStart(6, '0')}`, { align: 'center' });
+
+    doc.moveDown(2);
+
+    // --- 4. DETALLES DEL REPORTE (LAYOUT EN COLUMNAS) ---
+    const startY = doc.y;
+    const col1X = 60;
+    const col2X = 320;
+    const rowHeight = 40;
+
+    // Caja contenedora de info
+    doc.rect(50, startY - 10, 512, 140).lineWidth(1).strokeColor('#e5e7eb').stroke();
+
+    // Fila 1
+    doc.font('Helvetica-Bold').fontSize(10).fillColor('#000000').text('SOLICITANTE:', col1X, startY);
+    doc.font('Helvetica').text(report.solicitante, col1X, startY + 15);
+
+    doc.font('Helvetica-Bold').text('DEPARTAMENTO:', col2X, startY);
+    doc.font('Helvetica').text(report.departamento, col2X, startY + 15);
+
+    // Fila 2
+    const row2Y = startY + rowHeight;
+    doc.font('Helvetica-Bold').text('ENCARGADO:', col1X, row2Y);
+    doc.font('Helvetica').text(report.encargado || 'Sin asignar', col1X, row2Y + 15);
+
+    doc.font('Helvetica-Bold').text('FECHA DE REGISTRO:', col2X, row2Y);
+    doc.font('Helvetica').text(new Date(report.createdAt).toLocaleString('es-VE'), col2X, row2Y + 15);
+
+    // Fila 3
+    const row3Y = row2Y + rowHeight;
+    doc.font('Helvetica-Bold').text('TIPO DE FALLA:', col1X, row3Y);
+    doc.font('Helvetica').fillColor('#ef4444').text(report.tipo_falla || 'No especificado', col1X, row3Y + 15);
+
+    doc.font('Helvetica-Bold').fillColor('#000000').text('ESTADO ACTUAL:', col2X, row3Y);
+    const estadoColor = report.estado === 'Resuelto' ? '#16a34a' : '#ca8a04';
+    doc.font('Helvetica-Bold').fillColor(estadoColor).text(report.estado, col2X, row3Y + 15);
+
+    // --- 5. DESCRIPCIÓN ---
+    doc.y = startY + 150; // Mover cursor abajo de la caja
+    doc.moveDown(2);
+
+    doc.font('Helvetica-Bold').fontSize(12).fillColor('#172554').text('DESCRIPCIÓN DETALLADA', 50);
+    doc.moveTo(50, doc.y).lineTo(250, doc.y).lineWidth(1).strokeColor('#172554').stroke(); // Subrayado corto
+    doc.moveDown(1);
+
+    // Fondo gris suave para la descripción
+    const descY = doc.y;
+    doc.rect(50, descY, 512, 100).fillColor('#f9fafb').fill();
+    doc.fillColor('#374151');
+    doc.fontSize(11).font('Helvetica').text(report.descripcion || 'Sin descripción proporcionada.', 60, descY + 10, {
+      width: 490,
+      align: 'justify'
+    });
+
+    // --- 6. PIE DE PÁGINA (FOOTER) ---
+    const bottomY = doc.page.height - 80;
+    doc.moveTo(50, bottomY).lineTo(562, bottomY).lineWidth(1).strokeColor('#e5e7eb').stroke();
+
+    doc.fontSize(9).fillColor('#9ca3af').text('SIBCI - Sistema de Bienes y Control Interno', 50, bottomY + 10, { align: 'center' });
+    doc.text('Este documento es un reporte generado automáticamente.', { align: 'center' });
+    doc.text(`Generado el: ${new Date().toLocaleString('es-VE')}`, { align: 'center' });
 
     doc.end();
     doc.pipe(res);
