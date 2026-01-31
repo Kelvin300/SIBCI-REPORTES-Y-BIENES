@@ -82,36 +82,38 @@ const Users = () => {
     <div className="space-y-6">
       <div className="bg-[#172554] p-6 rounded-2xl text-white flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold">Gestión de Usuarios</h2>
-          <p className="text-sm text-blue-200">Crear y asignar jefes de departamento</p>
+          <h2 className="text-2xl font-bold text-white tracking-tight">
+              <span className="text-yellow-400 text-3xl">●</span> Gestión de Usuario
+            </h2>
+          <p className="text-sm mt-1 ml-6 text-blue-200">Crear y asignar jefes de departamento</p>
         </div>
       </div>
 
-      <div className="bg-white p-6 rounded-2xl shadow">
+      <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow border border-gray-100 dark:border-gray-700 transition-colors duration-300">
         <form onSubmit={handleCreate} className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <input required name="username" value={form.username} onChange={(e)=>setForm({...form, username:e.target.value})} placeholder="Usuario" className="p-2 border rounded" />
-          <input required name="password" value={form.password} onChange={(e)=>setForm({...form, password:e.target.value})} placeholder="Contraseña" className="p-2 border rounded" />
-          <input required name="nombre" value={form.nombre} onChange={(e)=>setForm({...form, nombre:e.target.value})} placeholder="Nombre completo" className="p-2 border rounded" />
-          <input required name="email" value={form.email} onChange={(e)=>setForm({...form, email:e.target.value})} placeholder="Correo" className="p-2 border rounded" />
-          <select name="rol" value={form.rol} onChange={(e)=>setForm({...form, rol:e.target.value})} className="p-2 border rounded">
-            {roleOptions().map(r=> <option key={r} value={r}>{r}</option>)}
+          <input required name="username" value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} placeholder="Usuario" className="p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white" />
+          <input required name="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="Contraseña" className="p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white" />
+          <input required name="nombre" value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })} placeholder="Nombre completo" className="p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white" />
+          <input required name="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="Correo" className="p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white" />
+          <select name="rol" value={form.rol} onChange={(e) => setForm({ ...form, rol: e.target.value })} className="p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+            {roleOptions().map(r => <option key={r} value={r}>{r}</option>)}
           </select>
-          <select name="departamento" value={form.departamento} onChange={(e)=>setForm({...form, departamento:e.target.value})} className="p-2 border rounded">
+          <select name="departamento" value={form.departamento} onChange={(e) => setForm({ ...form, departamento: e.target.value })} className="p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
             <option value="">-- Departamento (opcional) --</option>
-            {departments.map(d=> <option key={d.name} value={d.name}>{d.name}</option>)}
+            {departments.map(d => <option key={d.name} value={d.name}>{d.name}</option>)}
           </select>
           <div className="md:col-span-3 flex gap-2">
             <button disabled={loading} className="bg-green-600 text-white px-4 py-2 rounded">{loading ? 'Creando...' : 'Crear Usuario'}</button>
-            <button type="button" onClick={() => setForm({ username: '', password: '', nombre: '', email: '', rol: 'jefe', departamento: '' })} className="px-4 py-2 border rounded">Limpiar</button>
+            <button type="button" onClick={() => setForm({ username: '', password: '', nombre: '', email: '', rol: 'jefe', departamento: '' })} className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">Limpiar</button>
           </div>
         </form>
       </div>
 
-      <div className="bg-white p-6 rounded-2xl shadow">
-        <h3 className="font-semibold mb-4">Usuarios existentes</h3>
+      <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow border border-gray-100 dark:border-gray-700 transition-colors duration-300">
+        <h3 className="font-semibold mb-4 text-gray-900 dark:text-white">Usuarios existentes</h3>
         <div className="overflow-auto max-h-80">
           <table className="w-full text-left text-sm">
-            <thead className="text-xs text-gray-500 uppercase">
+            <thead className="text-xs text-gray-500 dark:text-gray-400 uppercase">
               <tr>
                 <th className="p-2">Usuario</th>
                 <th>Nombre</th>
@@ -122,11 +124,11 @@ const Users = () => {
             </thead>
             <tbody>
               {users.map(u => (
-                <tr key={u.id} className="border-t">
-                  <td className="p-2 font-mono">{u.username}</td>
-                  <td className="p-2">{u.nombre}</td>
-                  <td className="p-2">{u.rol}</td>
-                  <td className="p-2">{u.departamento || '-'}</td>
+                <tr key={u.id} className="border-t border-gray-200 dark:border-gray-700">
+                  <td className="p-2 font-mono text-gray-900 dark:text-white">{u.username}</td>
+                  <td className="p-2 text-gray-900 dark:text-gray-200">{u.nombre}</td>
+                  <td className="p-2 text-gray-900 dark:text-gray-200">{u.rol}</td>
+                  <td className="p-2 text-gray-900 dark:text-gray-200">{u.departamento || '-'}</td>
                   {user?.rol === 'superadmin' && (
                     <td className="p-2">
                       {u.username !== user.username && (

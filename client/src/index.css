@@ -5,4 +5,9 @@
 /* Tus estilos personalizados */
 body {
   background-color: #fafafa;
+  transition: background-color 0.3s ease;
+}
+
+body.dark {
+  background-color: #111827;
 }

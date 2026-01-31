@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 // IMPORTANTE: Ajusta la ruta si tu carpeta components está en otro nivel
-import SuccessModal from "../components/SuccessModal"; 
+import SuccessModal from "../components/SuccessModal";
 import { apiUrl } from '../config/api';
 
 const Reports = () => {
@@ -13,7 +13,7 @@ const Reports = () => {
     tipo_falla: 'Hardware',
     descripcion: ''
   });
-  
+
   const [loading, setLoading] = useState(false);
 
   const { user } = useAuth();
@@ -25,11 +25,11 @@ const Reports = () => {
     isOpen: false,
     title: '',
     message: '',
-    isError: false 
+    isError: false
   });
 
   const handleChange = (e) => {
-    setFormData({...formData, [e.target.name]: e.target.value});
+    setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
   // Función auxiliar para cerrar el modal
@@ -70,11 +70,11 @@ const Reports = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    
+
     try {
       const response = await axios.post(apiUrl('/api/reports'), formData);
       const { emailSent, emailError } = response.data;
-      
+
       // Lógica de respuesta exitosa
       if (emailSent) {
         setModalState({
@@ -88,7 +88,7 @@ const Reports = () => {
           isOpen: true,
           title: 'Reporte Guardado (Con Aviso)',
           message: `El reporte se guardó, pero hubo un problema al enviar el correo:\n${emailError}`,
-          isError: true 
+          isError: true
         });
         console.error('Error al enviar correo:', emailError);
       } else {
@@ -105,10 +105,10 @@ const Reports = () => {
 
     } catch (error) {
       console.error('Error completo:', error);
-      
+
       let errorMsg = 'Ocurrió un error inesperado.';
       if (error.response) {
-         errorMsg = `El servidor respondió: ${JSON.stringify(error.response.data)}`;
+        errorMsg = `El servidor respondió: ${JSON.stringify(error.response.data)}`;
       }
 
       setModalState({
@@ -118,17 +118,17 @@ const Reports = () => {
         isError: true
       });
     }
-    
+
     setLoading(false);
   };
 
   return (
     <div className="space-y-6"> {/* Espacio vertical entre el header y el formulario */}
-      
+
       {/* --- 1. HEADER / BANNER AZUL (Estilo Gestión) --- */}
       {/* Usamos un color arbitrario hex [#1e2538] similar a tu captura, o puedes usar bg-slate-900 */}
       <div className="bg-[#172554] rounded-2xl p-6 shadow-lg text-white flex flex-col md:flex-row md:justify-between md:items-center gap-4">
-        
+
         {/* Lado Izquierdo: Título y Subtítulo */}
         <div className="flex items-center gap-3">
           <div>
@@ -151,25 +151,25 @@ const Reports = () => {
 
 
       {/* --- 2. TARJETA DEL FORMULARIO (Blanca) --- */}
-      <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6 md:p-8">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-md border border-gray-100 dark:border-gray-700 p-6 md:p-8 transition-colors duration-300">
         <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          
+
           {/* Nombre */}
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Nombre del Solicitante</label>
-            <input 
-              required 
-              name="solicitante" 
-              value={formData.solicitante} 
-              onChange={handleChange} 
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1e2538] focus:border-[#1e2538] outline-none transition-all" 
-              placeholder="Ej: Juan Pérez" 
+            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Nombre del Solicitante</label>
+            <input
+              required
+              name="solicitante"
+              value={formData.solicitante}
+              onChange={handleChange}
+              className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#1e2538] dark:focus:ring-blue-500 focus:border-[#1e2538] dark:focus:border-blue-500 outline-none transition-all"
+              placeholder="Ej: Juan Pérez"
             />
           </div>
 
           {/* Departamento */}
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Departamento / Oficina</label>
+            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Departamento / Oficina</label>
             {departments.length > 0 ? (
               <>
                 <select
@@ -177,7 +177,7 @@ const Reports = () => {
                   name="departamento"
                   value={formData.departamento}
                   onChange={(e) => { handleChange(e); const sel = departments.find(d => d.name === e.target.value); setSelectedEncargado(sel ? sel.encargado : ''); }}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1e2538] focus:border-[#1e2538] outline-none transition-all"
+                  className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#1e2538] dark:focus:ring-blue-500 focus:border-[#1e2538] dark:focus:border-blue-500 outline-none transition-all"
                 >
                   <option value="">-- Selecciona un departamento --</option>
                   {departments.map(d => (
@@ -185,66 +185,66 @@ const Reports = () => {
                   ))}
                 </select>
                 {selectedEncargado && (
-                  <p className="text-sm text-gray-500 mt-2">Encargado: {selectedEncargado}</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">Encargado: {selectedEncargado}</p>
                 )}
               </>
             ) : (
-              <input 
-                required 
-                name="departamento" 
-                value={formData.departamento} 
-                onChange={handleChange} 
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1e2538] focus:border-[#1e2538] outline-none transition-all" 
-                placeholder="Ej: Prensa" 
+              <input
+                required
+                name="departamento"
+                value={formData.departamento}
+                onChange={handleChange}
+                className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#1e2538] dark:focus:ring-blue-500 focus:border-[#1e2538] dark:focus:border-blue-500 outline-none transition-all"
+                placeholder="Ej: Prensa"
               />
             )}
           </div>
 
           {/* Tipo de Falla */}
           <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Tipo de Falla</label>
-              <select 
-                name="tipo_falla" 
-                value={formData.tipo_falla} 
-                onChange={handleChange} 
-                className="w-full p-3 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-[#1e2538] focus:border-[#1e2538] outline-none transition-all"
-              >
-                  <option value="Hardware">Hardware (Equipo físico)</option>
-                  <option value="Software">Software (Programas/SO)</option>
-                  <option value="Redes">Internet / Redes</option>
-                  <option value="Electricidad">Eléctrico</option>
-              </select>
+            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Tipo de Falla</label>
+            <select
+              name="tipo_falla"
+              value={formData.tipo_falla}
+              onChange={handleChange}
+              className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#1e2538] dark:focus:ring-blue-500 focus:border-[#1e2538] dark:focus:border-blue-500 outline-none transition-all"
+            >
+              <option value="Hardware">Hardware (Equipo físico)</option>
+              <option value="Software">Software (Programas/SO)</option>
+              <option value="Redes">Internet / Redes</option>
+              <option value="Electricidad">Eléctrico</option>
+            </select>
           </div>
 
           {/* Descripción */}
           <div className="md:col-span-2">
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Descripción Detallada</label>
-            <textarea 
-              required 
-              name="descripcion" 
-              value={formData.descripcion} 
-              onChange={handleChange} 
-              rows="4" 
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1e2538] focus:border-[#1e2538] outline-none transition-all resize-y" 
+            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Descripción Detallada</label>
+            <textarea
+              required
+              name="descripcion"
+              value={formData.descripcion}
+              onChange={handleChange}
+              rows="4"
+              className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#1e2538] dark:focus:ring-blue-500 focus:border-[#1e2538] dark:focus:border-blue-500 outline-none transition-all resize-y"
               placeholder="Describa el problema..."
             ></textarea>
           </div>
 
           {/* Botón de envío */}
           <div className="md:col-span-2 flex justify-end mt-4">
-              <button 
-                type="submit" 
-                disabled={loading} 
-                className="bg-[#172554]  hover:bg-[#2c365e] text-white font-medium px-8 py-3 rounded-lg shadow-md transition-colors duration-200 disabled:opacity-70 disabled:cursor-not-allowed"
-              >
-                  {loading ? 'Enviando...' : 'Enviar Reporte'}
-              </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="bg-[#172554]  hover:bg-[#2c365e] text-white font-medium px-8 py-3 rounded-lg shadow-md transition-colors duration-200 disabled:opacity-70 disabled:cursor-not-allowed"
+            >
+              {loading ? 'Enviando...' : 'Enviar Reporte'}
+            </button>
           </div>
         </form>
       </div>
 
       {/* --- MODAL --- */}
-      <SuccessModal 
+      <SuccessModal
         isOpen={modalState.isOpen}
         title={modalState.title}
         message={modalState.message}
